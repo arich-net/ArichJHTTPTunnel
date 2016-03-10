@@ -1,4 +1,8 @@
+package com.arichnet.jhttptunnel;
 
+import java.io.*;
+import java.net.*;
+import java.util.*;
 
 class JHTTPServerConnection
 {
@@ -6,7 +10,7 @@ class JHTTPServerConnection
 	private final String rootDirectory = ".";
 	private final String defaultFile = "index.html";
 
-	JHTTPServerConnection (Socket s) throws IOException	{
+	JHTTPServerConnection(Socket s) throws IOException	{
 		super ();
 		mySocket = new MySocket (s);
 	}
@@ -22,5 +26,9 @@ class JHTTPServerConnection
 			v.addElement (foo);
 		}
 		return v;
+	}
+	
+	public void doit(){
+		System.out.println("Starting Do IT");
 	}
 }
