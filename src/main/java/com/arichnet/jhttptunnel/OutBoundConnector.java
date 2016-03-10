@@ -27,7 +27,7 @@
  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.jcraft.jhttptunnel;
+package com.arichnet.jhttptunnel;
 
 import java.io.*;
 import java.net.*;

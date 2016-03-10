@@ -27,17 +27,11 @@
  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.jcraft.jhttptunnel;
+package com.arichnet.jhttptunnel;
 
-public class JHttpTunnelException extends java.io.IOException
+import java.io.*;
+
+abstract class InBound extends Bound
 {
-	public JHttpTunnelException ()
-	{
-		super ();
-	}
-
-	public JHttpTunnelException (String s)
-	{
-		super (s);
-	}
+	abstract int receiveData (byte[] buf, int s, int l) throws IOException;
 }

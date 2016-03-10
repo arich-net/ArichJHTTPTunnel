@@ -27,7 +27,7 @@
  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.jcraft.jhttptunnel;
+package com.arichnet.jhttptunnel;
 
 import java.io.*;
 import java.lang.*;
@@ -69,7 +69,7 @@ public class JHttpTunnelClient
 
 		if (ib == null) {
 			/*try{ Class
-			 * c=Class.forName("com.jcraft.jhttptunnel.InBoundSocket");
+			 * c=Class.forName("com.arichnet.jhttptunnel.InBoundSocket");
 			 * ib=(InBound)c.newInstance(); } catch(Exception e){} */
 			throw new JHttpTunnelException ("InBound is not given");
 		}
@@ -80,7 +80,7 @@ public class JHttpTunnelClient
 
 		if (ob == null)	{
 			/*try{ Class
-			 * c=Class.forName("com.jcraft.jhttptunnel.OutBoundSocket");
+			 * c=Class.forName("com.arichnet.jhttptunnel.OutBoundSocket");
 			 * ob=(OutBound)c.newInstance(); } catch(Exception e){} */
 			throw new JHttpTunnelException ("OutBound is not given");
 		}

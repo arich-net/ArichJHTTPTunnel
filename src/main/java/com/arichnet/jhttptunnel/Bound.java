@@ -27,16 +27,50 @@
  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.jcraft.jhttptunnel;
+package com.arichnet.jhttptunnel;
 
-class JHttpTunnel
+import java.io.*;
+
+abstract class Bound
 {
-	static final byte TUNNEL_OPEN = 1;
-	static final byte TUNNEL_DATA = 2;
-	static final byte TUNNEL_PADDING = 3;
-	static final byte TUNNEL_ERROR = 4;
-	static final byte TUNNEL_SIMPLE = 0x40;
-	static final byte TUNNEL_PAD1 = 5 | TUNNEL_SIMPLE;
-	static final byte TUNNEL_CLOSE = 6 | TUNNEL_SIMPLE;
-	static final byte TUNNEL_DISCONNECT = 7 | TUNNEL_SIMPLE;
+	private String host = null;
+	private int port = 80;
+	private Proxy proxy = null;
+	private int sid = 1;
+
+	public void setHost(String host) {
+		this.host = host;
+	}
+
+	public void setPort(int port) {
+		this.port = port;
+	}
+
+	public void setProxy(Proxy proxy) {
+		this.proxy = proxy;
+	}
+	
+	public void setSid(int sid) {
+		this.sid = sid;
+	}
+
+	protected String getHost() {
+		return host;
+	}
+
+	protected int getPort() {
+		return port;
+	}
+
+	protected Proxy getProxy() {
+		return proxy;
+	}
+	
+	protected int getSid() {
+		return sid;
+	}
+
+	abstract public void connect () throws IOException;
+
+	abstract public void close () throws IOException;
 }

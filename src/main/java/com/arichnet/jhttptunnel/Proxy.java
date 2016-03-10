@@ -27,11 +27,44 @@
  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.jcraft.jhttptunnel;
+package com.arichnet.jhttptunnel;
 
-import java.io.*;
-
-abstract class InBound extends Bound
+class Proxy
 {
-	abstract int receiveData (byte[] buf, int s, int l) throws IOException;
+	String host;
+	int port;
+	String auth_name = null;
+	String auth_passwd = null;
+
+	Proxy (String host, int port)
+	{
+		this.host = host;
+		this.port = port;
+	}
+
+	String getHost ()
+	{
+		return host;
+	}
+
+	int getPort ()
+	{
+		return port;
+	}
+
+	void setAuth (String name, String passwd)
+	{
+		this.auth_name = name;
+		this.auth_passwd = passwd;
+	}
+
+	String getAuthName ()
+	{
+		return auth_name;
+	}
+
+	String getAuthPasswd ()
+	{
+		return auth_passwd;
+	}
 }

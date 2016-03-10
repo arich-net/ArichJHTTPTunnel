@@ -27,89 +27,91 @@
  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.jcraft.jhttptunnel;
+package com.arichnet.jhttptunnel;
 
 import java.net.*;
 import java.io.*;
 
-public class OutBoundURL extends OutBound
+public class OutBoundSocket extends OutBound
 {
+	static final private byte[] _rn = "\r\n".getBytes ();
+
+	private Socket socket = null;
 	private InputStream in = null;
 	private OutputStream out = null;
-	private URLConnection con = null;
-	private final byte[] _TUNNEL_DISCONNECT = {
-		(byte) 0x47
-	};
 
 	@Override
-	public void connect () throws IOException
-	{
+	public void connect() throws IOException {
 		close ();
+		System.out.println("Calling connect from " + this.getClass().getName());
 
 		String host = getHost ();
 		int port = getPort ();
+		int sid = getSid();
 
-		URL url = new URL ("http://" + host + ":" + port + "/index.html?crap=1");
-		con = url.openConnection ();
-		con.setUseCaches (false);
-		con.setDoOutput (true);
-		con.setRequestProperty ("Connection", "none");
-		out = con.getOutputStream ();
-		sendCount = getContentLength ();
+		String request = "/index.html?crap=" + sid + " HTTP/1.1";
+
+		Proxy p = getProxy ();
+		if (p == null) {
+			socket = new Socket (host, port);
+			request = "POST " + request;
+		}
+		else {
+			String phost = p.getHost ();
+			int pport = p.getPort ();
+			socket = new Socket (phost, pport);
+			request = "POST http://" + host + ":" + port + request;
+		}
+		socket.setTcpNoDelay (true);
+
+		in = socket.getInputStream ();
+		out = socket.getOutputStream ();
+		out.write (request.getBytes());
+		out.write (_rn);
+		out.write (("Content-Length: " + getContentLength()).getBytes());
+		out.write (_rn);
+		out.write ("Connection: close".getBytes());
+		out.write (_rn);
+		out.write (("Host: " + host + ":" + port).getBytes());
+		out.write (_rn);
+
+		out.write (_rn);
+		out.flush ();
+
+		sendCount = getContentLength();
+		// setOutputStream(out);
 	}
 
 	@Override
-	public void sendData (byte[] foo, int s, int l, boolean flush)
-			throws IOException
-	{
-		// System.out.println("sendData: l="+l+" sendCount="+sendCount+" flush="+flush);
+	public void sendData (byte[] foo, int s, int l, 
+			              boolean flush) throws IOException {
+		// System.out.println("sendDtat: l="+l+" sendCount="+sendCount);
 		if (l <= 0) return;
-
-		if (con == null)
-		{
-			connect ();
-		}
-
-		if (sendCount <= 0)
-		{
+		if (sendCount <= 0)	{
+			System.out.println ("1#");
 			connect ();
 		}
 
 		int retry = 2;
-		while (retry > 0)
-		{
+		while (retry > 0) {
 			try
 			{
-				// System.out.println("write l="+l);
 				out.write (foo, s, l);
-				sendCount -= l;
 				if (flush)
 				{
-					if (sendCount > 0)
-					{
-						out.write (_TUNNEL_DISCONNECT, 0, 1);
-					}
 					out.flush ();
-					out.close ();
-					out = null;
-					in = con.getInputStream ();
-					close ();
-
-					sendCount = 0;
-					return;
 				}
+				sendCount -= l;
 				return;
 			}
 			catch (SocketException e)
 			{
-				System.out.println ("2# " + e + " " + l + " " + flush);
+				// System.out.println("2# "+e+" "+l+" "+flush);
 				throw e;
-				// connect();
 			}
 			catch (IOException e)
 			{
-				// System.out.println("2# "+e+" "+l+" "+flush);
-				System.out.println ("2# " + e);
+				// System.out.println("21# "+e+" "+l+" "+flush);
 				connect ();
 			}
 			retry--;
@@ -119,15 +121,14 @@ public class OutBoundURL extends OutBound
 	@Override
 	public void close () throws IOException
 	{
-		// System.out.println(this+".close() con="+con+" in="+in);
-		if (con != null)
+		if (socket != null)
 		{
 			if (out != null)
 			{
 				try
 				{
+					out.flush ();
 					out.close ();
-					out = null;
 				}
 				catch (IOException e)
 				{
@@ -137,17 +138,14 @@ public class OutBoundURL extends OutBound
 			{
 				try
 				{
-					/*while(true){ int c=in.read(); if(c==-1)break; //
-					 * System.out.println("c="+c); } */
 					in.close ();
-					in = null;
 				}
 				catch (IOException e)
 				{
 				}
 			}
-			con = null;
+			socket.close ();
+			socket = null;
 		}
-		// System.out.println("close() done");
 	}
 }

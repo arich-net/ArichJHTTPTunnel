@@ -27,44 +27,17 @@
  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.jcraft.jhttptunnel;
+package com.arichnet.jhttptunnel;
 
-class Proxy
+public class JHttpTunnelException extends java.io.IOException
 {
-	String host;
-	int port;
-	String auth_name = null;
-	String auth_passwd = null;
-
-	Proxy (String host, int port)
+	public JHttpTunnelException ()
 	{
-		this.host = host;
-		this.port = port;
+		super ();
 	}
 
-	String getHost ()
+	public JHttpTunnelException (String s)
 	{
-		return host;
-	}
-
-	int getPort ()
-	{
-		return port;
-	}
-
-	void setAuth (String name, String passwd)
-	{
-		this.auth_name = name;
-		this.auth_passwd = passwd;
-	}
-
-	String getAuthName ()
-	{
-		return auth_name;
-	}
-
-	String getAuthPasswd ()
-	{
-		return auth_passwd;
+		super (s);
 	}
 }

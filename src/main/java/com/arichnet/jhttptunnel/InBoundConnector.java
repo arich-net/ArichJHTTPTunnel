@@ -1,6 +1,6 @@
 /* -*-mode:java; c-basic-offset:2; -*- */
 /*
- Copyright (c) 2004 ymnk, JCraft,Inc. All rights reserved.
+ Copyright (c) 2005 ymnk, JCraft,Inc. All rights reserved.
 
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions are met:
@@ -27,27 +27,26 @@
  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.jcraft.jhttptunnel;
+package com.arichnet.jhttptunnel;
 
-import java.net.*;
 import java.io.*;
+import java.net.*;
 
-public class InBoundURL extends InBound
+public class InBoundConnector extends InBound
 {
 	private InputStream in = null;
-	private URLConnection con = null;
+	private HttpURLConnection con = null;
 
 	@Override
 	public void connect () throws IOException
 	{
 		close ();
+		System.out.println("Calling connect from " + this.getClass().getName());
 		String host = getHost ();
 		int port = getPort ();
 		URL url = new URL ("http://" + host + ":" + port + "/index.html?crap=1");
-		con = url.openConnection ();
-		con.setUseCaches (false);
-		con.setDoOutput (false);
-		con.connect ();
+		con = (HttpURLConnection) url.openConnection ();
+		con.setRequestMethod ("GET");
 		in = con.getInputStream ();
 	}
 
@@ -57,9 +56,8 @@ public class InBoundURL extends InBound
 		// System.out.println("receiveData: "+l);
 		if (l <= 0)
 		{
-			System.out.println ("receiveData: " + l);
+			return -1;
 		}
-		if (l <= 0) return -1;
 		while (true)
 		{
 			// if(closed) return -1;
@@ -77,14 +75,11 @@ public class InBoundURL extends InBound
 				{
 					return i;
 				}
-				// System.out.println("1$ i="+i+" close="+closed);
-				// System.out.println("1$ i="+i);
 				connect ();
 			}
-			catch (SocketException e)
-			{
-				throw e;
-			}
+			// catch(SocketException e){
+			// throw e;
+			// }
 			catch (IOException e)
 			{
 				// System.out.println("2$ "+e);
@@ -95,8 +90,9 @@ public class InBoundURL extends InBound
 	}
 
 	@Override
-	public void close () throws IOException
+	public void close ()
 	{
+		// System.out.println("InBound.close: ");
 		if (con != null)
 		{
 			if (in != null)
@@ -109,6 +105,7 @@ public class InBoundURL extends InBound
 				{
 				}
 			}
+			con.disconnect ();
 			con = null;
 		}
 	}

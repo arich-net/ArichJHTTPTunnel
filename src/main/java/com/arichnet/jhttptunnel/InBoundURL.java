@@ -27,113 +27,78 @@
  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.jcraft.jhttptunnel;
+package com.arichnet.jhttptunnel;
 
 import java.net.*;
 import java.io.*;
 
-public class OutBoundSocket extends OutBound
+public class InBoundURL extends InBound
 {
-	static final private byte[] _rn = "\r\n".getBytes ();
-
-	private Socket socket = null;
 	private InputStream in = null;
-	private OutputStream out = null;
+	private URLConnection con = null;
 
 	@Override
-	public void connect() throws IOException {
+	public void connect () throws IOException
+	{
 		close ();
-		System.out.println("Calling connect from " + this.getClass().getName());
-
 		String host = getHost ();
 		int port = getPort ();
-		int sid = getSid();
-
-		String request = "/index.html?crap=" + sid + " HTTP/1.1";
-
-		Proxy p = getProxy ();
-		if (p == null) {
-			socket = new Socket (host, port);
-			request = "POST " + request;
-		}
-		else {
-			String phost = p.getHost ();
-			int pport = p.getPort ();
-			socket = new Socket (phost, pport);
-			request = "POST http://" + host + ":" + port + request;
-		}
-		socket.setTcpNoDelay (true);
-
-		in = socket.getInputStream ();
-		out = socket.getOutputStream ();
-		out.write (request.getBytes());
-		out.write (_rn);
-		out.write (("Content-Length: " + getContentLength()).getBytes());
-		out.write (_rn);
-		out.write ("Connection: close".getBytes());
-		out.write (_rn);
-		out.write (("Host: " + host + ":" + port).getBytes());
-		out.write (_rn);
-
-		out.write (_rn);
-		out.flush ();
-
-		sendCount = getContentLength();
-		// setOutputStream(out);
+		URL url = new URL ("http://" + host + ":" + port + "/index.html?crap=1");
+		con = url.openConnection ();
+		con.setUseCaches (false);
+		con.setDoOutput (false);
+		con.connect ();
+		in = con.getInputStream ();
 	}
 
 	@Override
-	public void sendData (byte[] foo, int s, int l, 
-			              boolean flush) throws IOException {
-		// System.out.println("sendDtat: l="+l+" sendCount="+sendCount);
-		if (l <= 0) return;
-		if (sendCount <= 0)	{
-			System.out.println ("1#");
-			connect ();
+	public int receiveData (byte[] buf, int s, int l) throws IOException
+	{
+		// System.out.println("receiveData: "+l);
+		if (l <= 0)
+		{
+			System.out.println ("receiveData: " + l);
 		}
-
-		int retry = 2;
-		while (retry > 0) {
+		if (l <= 0) return -1;
+		while (true)
+		{
+			// if(closed) return -1;
 			try
 			{
-				out.write (foo, s, l);
-				if (flush)
+				if (buf == null)
 				{
-					out.flush ();
+					if (l <= 0) return -1;
+					long bar = in.skip (l);
+					l -= bar;
+					continue;
 				}
-				sendCount -= l;
-				return;
+				int i = in.read (buf, s, l);
+				if (i > 0)
+				{
+					return i;
+				}
+				// System.out.println("1$ i="+i+" close="+closed);
+				// System.out.println("1$ i="+i);
+				connect ();
 			}
 			catch (SocketException e)
 			{
-				// System.out.println("2# "+e+" "+l+" "+flush);
 				throw e;
 			}
 			catch (IOException e)
 			{
-				// System.out.println("21# "+e+" "+l+" "+flush);
-				connect ();
+				// System.out.println("2$ "+e);
+				throw e;
+				// connect();
 			}
-			retry--;
 		}
 	}
 
 	@Override
 	public void close () throws IOException
 	{
-		if (socket != null)
+		if (con != null)
 		{
-			if (out != null)
-			{
-				try
-				{
-					out.flush ();
-					out.close ();
-				}
-				catch (IOException e)
-				{
-				}
-			}
 			if (in != null)
 			{
 				try
@@ -144,8 +109,7 @@ public class OutBoundSocket extends OutBound
 				{
 				}
 			}
-			socket.close ();
-			socket = null;
+			con = null;
 		}
 	}
 }

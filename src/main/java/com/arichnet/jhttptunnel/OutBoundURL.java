@@ -1,6 +1,6 @@
 /* -*-mode:java; c-basic-offset:2; -*- */
 /*
- Copyright (c) 2005 ymnk, JCraft,Inc. All rights reserved.
+ Copyright (c) 2004 ymnk, JCraft,Inc. All rights reserved.
 
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions are met:
@@ -27,86 +27,127 @@
  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.jcraft.jhttptunnel;
+package com.arichnet.jhttptunnel;
 
-import java.io.*;
 import java.net.*;
+import java.io.*;
 
-public class InBoundConnector extends InBound
+public class OutBoundURL extends OutBound
 {
 	private InputStream in = null;
-	private HttpURLConnection con = null;
+	private OutputStream out = null;
+	private URLConnection con = null;
+	private final byte[] _TUNNEL_DISCONNECT = {
+		(byte) 0x47
+	};
 
 	@Override
 	public void connect () throws IOException
 	{
 		close ();
-		System.out.println("Calling connect from " + this.getClass().getName());
+
 		String host = getHost ();
 		int port = getPort ();
+
 		URL url = new URL ("http://" + host + ":" + port + "/index.html?crap=1");
-		con = (HttpURLConnection) url.openConnection ();
-		con.setRequestMethod ("GET");
-		in = con.getInputStream ();
+		con = url.openConnection ();
+		con.setUseCaches (false);
+		con.setDoOutput (true);
+		con.setRequestProperty ("Connection", "none");
+		out = con.getOutputStream ();
+		sendCount = getContentLength ();
 	}
 
 	@Override
-	public int receiveData (byte[] buf, int s, int l) throws IOException
+	public void sendData (byte[] foo, int s, int l, boolean flush)
+			throws IOException
 	{
-		// System.out.println("receiveData: "+l);
-		if (l <= 0)
+		// System.out.println("sendData: l="+l+" sendCount="+sendCount+" flush="+flush);
+		if (l <= 0) return;
+
+		if (con == null)
 		{
-			return -1;
+			connect ();
 		}
-		while (true)
+
+		if (sendCount <= 0)
 		{
-			// if(closed) return -1;
+			connect ();
+		}
+
+		int retry = 2;
+		while (retry > 0)
+		{
 			try
 			{
-				if (buf == null)
+				// System.out.println("write l="+l);
+				out.write (foo, s, l);
+				sendCount -= l;
+				if (flush)
 				{
-					if (l <= 0) return -1;
-					long bar = in.skip (l);
-					l -= bar;
-					continue;
+					if (sendCount > 0)
+					{
+						out.write (_TUNNEL_DISCONNECT, 0, 1);
+					}
+					out.flush ();
+					out.close ();
+					out = null;
+					in = con.getInputStream ();
+					close ();
+
+					sendCount = 0;
+					return;
 				}
-				int i = in.read (buf, s, l);
-				if (i > 0)
-				{
-					return i;
-				}
-				connect ();
+				return;
 			}
-			// catch(SocketException e){
-			// throw e;
-			// }
-			catch (IOException e)
+			catch (SocketException e)
 			{
-				// System.out.println("2$ "+e);
+				System.out.println ("2# " + e + " " + l + " " + flush);
 				throw e;
 				// connect();
 			}
+			catch (IOException e)
+			{
+				// System.out.println("2# "+e+" "+l+" "+flush);
+				System.out.println ("2# " + e);
+				connect ();
+			}
+			retry--;
 		}
 	}
 
 	@Override
-	public void close ()
+	public void close () throws IOException
 	{
-		// System.out.println("InBound.close: ");
+		// System.out.println(this+".close() con="+con+" in="+in);
 		if (con != null)
 		{
-			if (in != null)
+			if (out != null)
 			{
 				try
 				{
-					in.close ();
+					out.close ();
+					out = null;
 				}
 				catch (IOException e)
 				{
 				}
 			}
-			con.disconnect ();
+			if (in != null)
+			{
+				try
+				{
+					/*while(true){ int c=in.read(); if(c==-1)break; //
+					 * System.out.println("c="+c); } */
+					in.close ();
+					in = null;
+				}
+				catch (IOException e)
+				{
+				}
+			}
 			con = null;
 		}
+		// System.out.println("close() done");
 	}
 }
