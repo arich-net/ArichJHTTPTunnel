@@ -26,10 +26,9 @@ package com.arichnet.jhttptunnel;
 
 import java.io.*;
 import java.net.*;
-import java.util.*;
 
-public class JHttpTunnelServer implements Runnable
-{
+public class JHttpTunnelServer extends Thread {
+	
 	static int connections = 0;
 	static int client_connections = 0;
 	static int source_connections = 0;
@@ -46,7 +45,7 @@ public class JHttpTunnelServer implements Runnable
 		super ();
 		connections = 0;
 		try	{
-			serverSocket = new ServerSocket(port);
+			serverSocket = new ServerSocket(port);			
 		}
 		catch (IOException e) {
 			System.out.println("ServerSocket error"+e );
@@ -84,15 +83,42 @@ public class JHttpTunnelServer implements Runnable
 			connections++;
 			// new Spawn(socket);
 			final Socket _socket = socket;
+			final String _host = forward_host;
+			final int _port = forward_port;
+			
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
 					try	{
-						(new JHTTPServerConnection(_socket)).doit();
+						(new JHTTPServerConnection(_socket, _host, _port)).newsocket();
 					}
 					catch(Exception e)	{ }
 				}
 			}).start();
 		}
+	}
+	
+	public static void main(String[] args) {
+		int port = 8888;
+		if (args.length != 0) {
+			String _port = args[0];
+			if (_port != null) {
+				port = Integer.parseInt (_port);
+			}
+		}
+
+		String fhost = null;
+		int fport = 0;
+		String _fw = System.getProperty ("forward");
+		
+		if (_fw != null && _fw.indexOf (':') != -1) {
+			fport = Integer.parseInt(_fw.substring(_fw.lastIndexOf(':') + 1));
+			fhost = _fw.substring (0, _fw.lastIndexOf(':'));
+		}
+		if (fport == 0 || fhost == null) {
+			System.err.println ("forward-port is not given");
+			System.exit (1);
+		}
+		(new JHttpTunnelServer (port, fhost, fport)).start ();
 	}
 }

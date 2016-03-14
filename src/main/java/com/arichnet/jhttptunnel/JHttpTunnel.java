@@ -39,4 +39,5 @@ class JHttpTunnel
 	static final byte TUNNEL_PAD1 = 5 | TUNNEL_SIMPLE;
 	static final byte TUNNEL_CLOSE = 6 | TUNNEL_SIMPLE;
 	static final byte TUNNEL_DISCONNECT = 7 | TUNNEL_SIMPLE;
+	static final int CONTENT_LENGTH = 102400;
 }

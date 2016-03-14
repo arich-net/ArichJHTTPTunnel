@@ -93,6 +93,12 @@ public class MySocket {
 			return (null);
 		}
 	}
+	
+	public int available() throws IOException {
+		int return_value;
+		return_value = dataInputStream.available();
+		return return_value;
+	}
 
 	public void write(byte[] buf, int offset, int length) throws IOException {
 		os.write(buf, offset, length);
@@ -143,5 +149,11 @@ public class MySocket {
 
 	public void flush() throws IOException {
 		os.flush ();
+	}
+	
+	public void getStatus() {
+		System.out.println("Socket Status: Bound=>" + socket.isBound() + 
+						   " Closed=>" + socket.isClosed() + 
+						   " Connected=>" + socket.isConnected());
 	}
 }
