@@ -9,6 +9,7 @@ class JHTTPServerConnection
 	private MySocket mySocket = null;
 	private String forward_host = null;
 	private int forward_port = 0;
+	private String session_id = "";
 	private final String rootDirectory = ".";
 	private final String defaultFile = "index.html";
 	private byte[] buff = new byte[1024];
@@ -26,7 +27,7 @@ class JHTTPServerConnection
 		String socket_readline = "";
 		String http_method = "";
 		String temp = "";
-		String session_id = "";
+		
 		Hashtable<String, String> http_headers = new Hashtable();
 		Hashtable<String, String> http_arguments = new Hashtable<String, String>();
 		
@@ -43,12 +44,7 @@ class JHTTPServerConnection
 		if ((temp = http_arguments.get("SESSIONID")) != null)
 			session_id = temp;
 		else
-			session_id = "123456789";
-		
-		// Start the client with the Session ID specified
-		forward_client = new ForwardClient(forward_host, forward_port, session_id);
-		Thread client_thread = new Thread(forward_client, session_id);
-		client_thread.start();
+			session_id = "123456789";				
 		
 		// Get the session ID to identify the client Thread
 		
@@ -57,17 +53,25 @@ class JHTTPServerConnection
 		
 		http_method = socket_readline.substring(0, socket_readline.indexOf(" "));
 		System.out.println("Thread: " + Thread.currentThread().getName() + 
-		           " | Method of this socket: " + http_method);
+		           		   " | Method of this socket: " + http_method);
 		
 		http_headers = getHttpHeader(mySocket);
 		
 		switch(http_method.toLowerCase()) {
 			case "post":
-				System.out.println("POST called");
+				// Start the client with the Session ID specified
+				forward_client = new ForwardClient(forward_host, forward_port, session_id);
+				Thread client_thread = new Thread(forward_client, session_id);
+				client_thread.start();
+				
+				System.out.println("Thread: " + Thread.currentThread().getName() + 
+								   "POST called");
+				
 				processPOST(mySocket, http_headers, http_arguments, forward_client);				
 				break;
 			case "get":
-				System.out.println("GET called");
+				System.out.println("Thread: " + Thread.currentThread().getName() + 
+						           "GET called");
 				processGET(mySocket, http_headers, http_arguments, forward_client);
 				break;
 			case "head":
@@ -152,7 +156,8 @@ class JHTTPServerConnection
 
 				if (tunnel_opened) {
 
-					System.out.println("Inside Checking: " + socket.available());
+					System.out.println("Thread: " + Thread.currentThread().getName() + 
+							 		   " | Inside Checking: " + socket.available());
 					socket.getStatus();
 					
 					if (socket.available() > 0) {						
@@ -165,15 +170,11 @@ class JHTTPServerConnection
 							temp = socket.read(buff, 0, 2);
 							data_length = (Byte.valueOf(buff[0]) * 255) + Byte.valueOf(buff[1]);
 							System.out.println("Thread: " + Thread.currentThread().getName() + 
-									   		   " | Data Length: " + data_length);
-							
+									   		   " | POST Data Length: " + data_length);
+																				
 							temp = socket.read(buff, 0, data_length);
-							StringBuilder sb = new StringBuilder();
-							
-							for (byte b: buff){	sb.append(String.format("%02X ", b)); }
-							
-							System.out.println("Thread: " + Thread.currentThread().getName() + 
-									   		   " | Data received: " + sb.toString());
+							forward_client.writeOutputBuffer(Arrays.copyOfRange(buff, 0, data_length));
+
 						}
 					}					
 				}
@@ -204,8 +205,10 @@ class JHTTPServerConnection
 						
 		}
 		catch (Exception e) { 
+			StringWriter errors = new StringWriter();
+	        e.printStackTrace(new PrintWriter(errors));
 			System.out.println("Thread: " + Thread.currentThread().getName() + 
-			   		   		   " | POST Error: " + e.toString());
+			   		   		   " | POST Error: " + errors.toString());
 		}
 	}
 	

@@ -36,7 +36,7 @@ public class MySocket {
 
 	MySocket(Socket s) throws IOException {
 		try	{
-			s.setTcpNoDelay (true);
+			s.setTcpNoDelay(true);
 		}
 		catch(Exception e) {
 			System.out.println (e + " tcpnodelay");
@@ -152,7 +152,8 @@ public class MySocket {
 	}
 	
 	public void getStatus() {
-		System.out.println("Socket Status: Bound=>" + socket.isBound() + 
+		System.out.println("Thread: " + Thread.currentThread().getName() +
+						   " | Socket Status: Bound=>" + socket.isBound() + 
 						   " Closed=>" + socket.isClosed() + 
 						   " Connected=>" + socket.isConnected());
 	}

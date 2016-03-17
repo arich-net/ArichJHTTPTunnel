@@ -74,7 +74,7 @@ public class JHttpTunnelServer extends Thread {
 		Socket socket = null;
 		while(true) {
 			try	{
-				socket = serverSocket.accept ();
+				socket = serverSocket.accept();
 			}
 			catch(IOException e) {
 				System.out.println ("Socket accept error, probably the port is busy");
