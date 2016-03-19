@@ -11,15 +11,15 @@ class JHTTPServerConnection
 	private int forward_port = 0;
 	private String session_id = "";
 	private final String rootDirectory = ".";
-	private final String defaultFile = "index.html";
-	private byte[] buff = new byte[1024];
+	private final String defaultFile = "index.html";	
 	private ForwardClient forward_client = null;
 
-	JHTTPServerConnection(Socket s, String h, int p) throws IOException	{
+	JHTTPServerConnection(Socket s, String h, int p, ForwardClient f) throws IOException	{
 		super ();
 		mySocket = new MySocket (s);
 		forward_host = h;
 		forward_port = p;
+		forward_client = f;
 	}
 
 	
@@ -60,18 +60,18 @@ class JHTTPServerConnection
 		switch(http_method.toLowerCase()) {
 			case "post":
 				// Start the client with the Session ID specified
-				forward_client = new ForwardClient(forward_host, forward_port, session_id);
+				forward_client.setForwardClientData(forward_host, forward_port, session_id);
 				Thread client_thread = new Thread(forward_client, session_id);
 				client_thread.start();
 				
 				System.out.println("Thread: " + Thread.currentThread().getName() + 
-								   "POST called");
+								   " | POST called: " + forward_client.toString());
 				
 				processPOST(mySocket, http_headers, http_arguments, forward_client);				
 				break;
 			case "get":
 				System.out.println("Thread: " + Thread.currentThread().getName() + 
-						           "GET called");
+						           " | GET called: " + forward_client.toString());
 				processGET(mySocket, http_headers, http_arguments, forward_client);
 				break;
 			case "head":
@@ -140,8 +140,10 @@ class JHTTPServerConnection
 							 Hashtable<String, String> http_headers, 
 							 Hashtable<String, String> http_arguments,
 							 ForwardClient forward_client){
+		byte[] buff = new byte[1024];
 		try {
-			System.out.println("Thread: " + Thread.currentThread().getName() + " | Starting POST processing");
+			System.out.println("Thread: " + Thread.currentThread().getName() + 
+					           " | Starting POST processing: " + forward_client.toString());
 			byte controlbyte = 0;
 			int temp = 0;
 			boolean tunnel_opened = false;			
@@ -164,9 +166,9 @@ class JHTTPServerConnection
 						temp = socket.read(buff, 0, 1);
 						controlbyte = buff[0];
 						System.out.println("Thread: " + Thread.currentThread().getName() + 
-										   " | First byte received: " + Integer.toHexString(controlbyte));
+										   " | First byte received: " + Integer.toHexString(controlbyte));						
 																		
-						if ((controlbyte & 0xFF) == JHttpTunnel.TUNNEL_DATA) {
+						if (controlbyte == JHttpTunnel.TUNNEL_DATA) {
 							temp = socket.read(buff, 0, 2);
 							data_length = (Byte.valueOf(buff[0]) * 255) + Byte.valueOf(buff[1]);
 							System.out.println("Thread: " + Thread.currentThread().getName() + 
@@ -176,6 +178,12 @@ class JHTTPServerConnection
 							forward_client.writeOutputBuffer(Arrays.copyOfRange(buff, 0, data_length));
 
 						}
+						else if (controlbyte  == JHttpTunnel.TUNNEL_PAD1) {
+							System.out.println("Thread: " + Thread.currentThread().getName() + 
+							   		   " | Comparing with: " + Integer.toHexString(JHttpTunnel.TUNNEL_PAD1));
+							forward_client.sendPAD1();
+						}
+						
 					}					
 				}
 				else {
@@ -195,13 +203,13 @@ class JHTTPServerConnection
 					}
 				}
 				
-				//System.out.println("Thread: " + Thread.currentThread().getName() + 
-				//		   		   " | Waiting for data to receive");
+				System.out.println("Thread: " + Thread.currentThread().getName() + 
+						   		   " | Waiting for data to receive");
 				Thread.currentThread().sleep((long)1000);									
 					
 			}
 			
-			//System.out.println("Exiting: ");
+//			System.out.println("Exiting: ");
 						
 		}
 		catch (Exception e) { 
@@ -216,22 +224,45 @@ class JHTTPServerConnection
 			 				Hashtable<String, String> http_headers, 
 			 				Hashtable<String, String> http_arguments,
 			 				ForwardClient forward_client){
+		byte[] buff = new byte[1024];
+		byte[] data_length = new byte[2];
 		try{
-			System.out.println("Thread: " + Thread.currentThread().getName() + " | Starting GET processing");
-			byte controlbyte = 0;
+			System.out.println("Thread: " + Thread.currentThread().getName() + 
+					           " | Starting GET processing: " + forward_client.toString());
 			
 			sendok(socket);
 			
 			while(true){
-				//System.out.println("Thread: " + Thread.currentThread().getName() + 
-				//   		   		   " | Waiting for data to receive");
+				System.out.println("Thread: " + Thread.currentThread().getName() + 
+				   		   		   " | GET Waiting for data buffer pos: " + forward_client.getBufferInPosition());
+				
+				if (forward_client.getBufferInPosition() > 0) {
+					int position = forward_client.getBufferInPosition();
+					byte[] tmp = forward_client.readInputBuffer();
+					
+					if ((position == 1) & (tmp[0] == JHttpTunnel.TUNNEL_PAD1)) {
+						socket.write(tmp, 0, 1);
+					}
+					else {
+						System.out.println("Thread: " + Thread.currentThread().getName() + 
+						           		   " | WRITING GET DATA: " + tmp.length);
+						buff[0] = JHttpTunnel.TUNNEL_DATA;
+						socket.write(buff, 0, 1);					
+						data_length = getDataLength(tmp.length);
+						socket.write(data_length, 0, 2);					
+						socket.write(tmp, 0, tmp.length);
+					}					
+				}
+				
 				Thread.currentThread().sleep((long)1000);
 			}
 			
 		}
 		catch (Exception e){
+			StringWriter errors = new StringWriter();
+	        e.printStackTrace(new PrintWriter(errors));
 			System.out.println("Thread: " + Thread.currentThread().getName() + 
-	   		   		   		   " | POST Error: " + e.toString());
+	   		   		   		   " | GET Error: " + errors.toString());
 		}
 	}
 	
@@ -245,5 +276,17 @@ class JHTTPServerConnection
 		socket.println("Expires: 0");
 		socket.println("Content-Type: text/html");
 		socket.println("");
+	}
+	
+	private byte[] getDataLength(int length) {
+		byte[] return_data = new byte[2];		
+		int msb_int = Math.abs(length / 256);
+		int lsb_int = (length - (msb_int * 256));
+		System.out.println("Thread: " + Thread.currentThread().getName() + 
+   		   		   		   " | MSB value:" + msb_int + "- LSB value:" + lsb_int);		
+		return_data[0] = (byte)msb_int;
+		return_data[1] = (byte)lsb_int;
+		
+		return return_data;
 	}
 }

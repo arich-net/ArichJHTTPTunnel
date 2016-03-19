@@ -40,6 +40,7 @@ public class JHttpTunnelServer extends Thread {
 
 	static String forward_host;
 	static int forward_port;
+	static ForwardClient forward_client;
 
 	JHttpTunnelServer(int port)	{
 		super ();
@@ -67,6 +68,7 @@ public class JHttpTunnelServer extends Thread {
 		this(lport);
 		this.forward_host = fhost;
 		this.forward_port = fport;
+		this.forward_client = new ForwardClient();
 	}
 	
 	@Override
@@ -85,14 +87,17 @@ public class JHttpTunnelServer extends Thread {
 			final Socket _socket = socket;
 			final String _host = forward_host;
 			final int _port = forward_port;
+			final ForwardClient _forwardclient = forward_client;
 			
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
-					try	{
-						(new JHTTPServerConnection(_socket, _host, _port)).newsocket();
-					}
-					catch(Exception e)	{ }
+					// synchronized(_forwardclient) {
+						try	{							
+							(new JHTTPServerConnection(_socket, _host, _port, _forwardclient)).newsocket();
+						}
+						catch(Exception e)	{ }
+					// }
 				}
 			}).start();
 		}

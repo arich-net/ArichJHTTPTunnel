@@ -22,6 +22,17 @@ public class ForwardClient implements Runnable{
 		forward_port = fport;
 		session_id = sid;
 	}
+	
+	public ForwardClient(){
+		forward_host = "127.0.0.1";
+		forward_port = 22;
+	}
+	
+	public void setForwardClientData(String h, int p, String s){
+		forward_host = h;
+		forward_port = p;
+		session_id = s;
+	}
 
 	@Override
 	public void run() {
@@ -74,12 +85,18 @@ public class ForwardClient implements Runnable{
 		byte[] return_data = null;
 		int currentPosition = buffer_in.position();
 		if (currentPosition > 0) {
-			buffer_in.get(return_data, 0, currentPosition);  
-		}
-		buffer_in.rewind();
+			return_data = new byte[currentPosition];
+			buffer_in.rewind();
+			buffer_in.get(return_data, 0, currentPosition);
+			buffer_in.rewind();
+		}		
 		System.out.println("Thread: " + Thread.currentThread().getName() + 
      		   			   " | Byte Input Stream Size: " + currentPosition);		
 		return return_data;
+	}
+	
+	public int getBufferInPosition() {
+		return buffer_in.position();
 	}
 	
 	public void writeOutputBuffer(byte[] bytes_data){
@@ -87,7 +104,11 @@ public class ForwardClient implements Runnable{
 		buffer_out.put(_rn, 0, 2);
 		System.out.println("Thread: " + Thread.currentThread().getName() + 
                 		   " | Byte Output Stream Size: " + bytes_data.length);
-	}		
+	}
+	
+	public void sendPAD1(){
+		buffer_in.put(JHttpTunnel.TUNNEL_PAD1);
+	}
 	
 	public void close(){
 		try {
