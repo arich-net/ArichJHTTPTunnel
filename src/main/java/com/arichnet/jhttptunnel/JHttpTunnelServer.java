@@ -26,6 +26,7 @@ package com.arichnet.jhttptunnel;
 
 import java.io.*;
 import java.net.*;
+import java.util.*;
 
 public class JHttpTunnelServer extends Thread {
 	
@@ -38,9 +39,14 @@ public class JHttpTunnelServer extends Thread {
 	static String myaddress = null;
 	static String myURL = null;
 
-	static String forward_host;
-	static int forward_port;
-	static ForwardClient forward_client;
+	//static String forward_host;
+	private String forward_host;
+	//static int forward_port;
+	private int forward_port;
+	//static ForwardClient forward_client;
+	//private ForwardClient forward_client;
+	//static Hashtable<String, ForwardClient> clientsTable = null;
+	private Hashtable<String, ForwardClient> clientsTable;
 
 	JHttpTunnelServer(int port)	{
 		super ();
@@ -68,7 +74,8 @@ public class JHttpTunnelServer extends Thread {
 		this(lport);
 		this.forward_host = fhost;
 		this.forward_port = fport;
-		this.forward_client = new ForwardClient();
+		//this.forward_client = new ForwardClient();
+		this.clientsTable = new Hashtable<String, ForwardClient>();
 	}
 	
 	@Override
@@ -87,14 +94,16 @@ public class JHttpTunnelServer extends Thread {
 			final Socket _socket = socket;
 			final String _host = forward_host;
 			final int _port = forward_port;
-			final ForwardClient _forwardclient = forward_client;
+			//final ForwardClient _forwardclient = forward_client;
+			final Hashtable<String, ForwardClient> _clientsTable = clientsTable; 
 			
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
 					// synchronized(_forwardclient) {
 						try	{							
-							(new JHTTPServerConnection(_socket, _host, _port, _forwardclient)).newsocket();
+							//(new JHTTPServerConnection(_socket, _host, _port, _forwardclient)).newsocket();
+							(new JHTTPServerConnection(_socket, _host, _port, _clientsTable)).newsocket();
 						}
 						catch(Exception e)	{ }
 					// }

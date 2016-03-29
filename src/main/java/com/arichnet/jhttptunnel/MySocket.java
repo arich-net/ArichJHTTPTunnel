@@ -157,4 +157,9 @@ public class MySocket {
 						   " Closed=>" + socket.isClosed() + 
 						   " Connected=>" + socket.isConnected());
 	}
+	
+	public boolean isConnected() {
+		return socket.isConnected();
+	}
+	
 }
