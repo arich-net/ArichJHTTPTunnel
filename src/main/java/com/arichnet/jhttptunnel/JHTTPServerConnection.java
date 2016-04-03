@@ -68,22 +68,27 @@ class JHTTPServerConnection
 		
 		switch(http_method.toLowerCase()) {
 			case "post":				
-				// Get the session id client if it has been iniciated
-				if (clientsTable.containsKey(session_id))
+				// Get the session id client if it has been initiated
+				if (clientsTable.containsKey(session_id)) {
+					System.out.println("Thread: " + Thread.currentThread().getName() + 
+	   		   		   		           " | Recovering client with sid: " + session_id);
 					forward_client = (ForwardClient) clientsTable.get(session_id);
+					forward_client.message();
+				}
 				else {
 					forward_client = new ForwardClient();
 					forward_client.setForwardClientData(forward_host, forward_port, session_id);
+					Thread client_thread = new Thread(forward_client, session_id);
+					client_thread.start();					
+					// Saving forward_client on the hash
 					clientsTable.put(session_id, forward_client);
 					System.out.println("Thread: " + Thread.currentThread().getName() + 
 								       " | Adding client to the table " + clientsTable.containsKey(session_id));
+					//forward_client.message();
 				}				
 				
 				//forward_client.setForwardClientData(forward_host, forward_port, session_id);
-				// Start the client with the Session ID specified
-				
-				Thread client_thread = new Thread(forward_client, session_id);
-				client_thread.start();
+				// Start the client with the Session ID specified								
 				
 				System.out.println("Thread: " + Thread.currentThread().getName() + 
 								   " | POST called: " + forward_client.toString());
@@ -97,7 +102,7 @@ class JHTTPServerConnection
 					try { Thread.currentThread().sleep((long)10); }
 					catch (Exception e) { }
 				}
-				
+								
 				forward_client = (ForwardClient) clientsTable.get(session_id);				
 				System.out.println("Thread: " + Thread.currentThread().getName() + 
 				           		   " | GET called: " + forward_client.toString());
@@ -234,6 +239,11 @@ class JHTTPServerConnection
 						else if (controlbyte  == JHttpTunnel.TUNNEL_PAD1) {
 							forward_client.sendPAD1();
 						}
+						else if (controlbyte  == JHttpTunnel.TUNNEL_DISCONNECT) {							
+							keep_request = false;
+							System.out.println("Thread: " + Thread.currentThread().getName() + 
+			   		   		   		   " | Disconnecting the tunnel!! ");
+						}
 						else if (controlbyte  == JHttpTunnel.TUNNEL_CLOSE) {
 							System.out.println("Thread: " + Thread.currentThread().getName() + 
 					   		   		   		   " | Closing the tunnel!! ");
@@ -315,11 +325,17 @@ class JHTTPServerConnection
 						getTraffic += tmp.length;
 					}
 					System.out.println("Thread: " + Thread.currentThread().getName() + 
-			   		   		   		   " | GET Data Traffic: " + getTraffic + 
-			   		   		   		   " | BREAK Flag: " + keep_request);
+	   		   		   		   		   " | GET Data Traffic: " + getTraffic + 
+	   		   		   		   		   " | BREAK Flag: " + keep_request);
+				}				
+				
+				if (getTraffic > JHttpTunnel.CONTENT_LENGTH) {					
+					keep_request = false;
+					System.out.println("Thread: " + Thread.currentThread().getName() + 
+	   		   		   		   		   " | Breaking this thread: " + getTraffic +
+	   		   		   		   		   " | Comparing with value: " + JHttpTunnel.CONTENT_LENGTH +
+	   		   		   		   		   " | BREAK Flag: " + keep_request);
 				}
-				if (getTraffic > JHttpTunnel.CONTENT_LENGTH)								
-					keep_request = false;								
 				
 				// Do nothing
 				Thread.currentThread().sleep((long)1);
@@ -341,9 +357,11 @@ class JHTTPServerConnection
 		while (socket.isConnected()) {
 			socket.close();
 		}
-		while (! Thread.currentThread().interrupted()) {				
+		while (! Thread.currentThread().interrupted()) {
+			System.out.println("Thread: " + Thread.currentThread().getName() + 
+	   		   		   		   " | Socket closing...: ");
 			Thread.currentThread().interrupt();
-		}
+		}		
 	}
 	
 	private void sendok(MySocket socket) throws IOException {

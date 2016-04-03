@@ -50,6 +50,8 @@ public class ForwardClient implements Runnable{
 			forward_in = forward_socket.getInputStream();
 			forward_out = forward_socket.getOutputStream();
 			
+			message();
+			
 			while (forward_socket.isConnected()) {
 				if (forward_in.available() > 0) {
 					data_size = forward_in.available();					
@@ -105,7 +107,7 @@ public class ForwardClient implements Runnable{
 			buffer_in.rewind();
 		}		
 		System.out.println("Thread: " + Thread.currentThread().getName() + 
-     		   			   " | Byte Input Stream Size: " + currentPosition);		
+     		   			   " | *** Byte Input Stream Size: " + currentPosition);		
 		return return_data;
 	}
 	
@@ -128,8 +130,8 @@ public class ForwardClient implements Runnable{
 	public void writeOutputBuffer(byte[] bytes_data){
 		//System.out.println("Buffer status: " + buffer_out.position());
 		buffer_out.put(bytes_data, 0, bytes_data.length - 1);		
-		//System.out.println("Thread: " + Thread.currentThread().getName() + 
-        //        		   " | Byte Output Stream Size: " + bytes_data.length);
+		System.out.println("Thread: " + Thread.currentThread().getName() + 
+                		   " | *** Byte Output Stream Size: " + bytes_data.length);
 	}
 	
 	public void sendPAD1(){
@@ -163,6 +165,14 @@ public class ForwardClient implements Runnable{
 			System.out.println("Thread: " + Thread.currentThread().getName() + 
 			                   " | ForwardClient error: " + errors.toString());
 		}
+	}
+	
+	public void message(){
+		System.out.println("Thread: " + Thread.currentThread().getName() + 
+                		   " | ForwardClient MESSAGE request, " +
+                		   " Buffer IN, " + buffer_in.toString() + ", " +
+                		   " Buffer OUT: " + buffer_out.toString() + ", " + 
+                		   " Socket INFO: " + forward_socket.toString());
 	}
 }
 
