@@ -11,7 +11,7 @@ public class ForwardClient implements Runnable{
 	Socket forward_socket = null;
 	InputStream forward_in = null;
 	OutputStream forward_out = null;
-	ByteBuffer buffer_in = ByteBuffer.allocateDirect(1024);
+	ByteBuffer buffer_in = ByteBuffer.allocateDirect(10240);
 	ByteBuffer buffer_out = ByteBuffer.allocateDirect(1024);
 	byte[] _rn = "\r\n".getBytes ();
 	//ByteArrayInputStream buffer_in = new ByteArrayInputStream(new byte[1024]);
@@ -41,7 +41,7 @@ public class ForwardClient implements Runnable{
 					           "¡¡¡¡¡ Starting forward client: " + this.toString());
 			// Connect to forward server
 			byte[] data_to_send = new byte[1024];
-			byte[] data_to_receive = new byte[1024];
+			byte[] data_to_receive = new byte[10240];
 			int data_size = 0;
 			
 			forward_socket = new Socket(forward_host, forward_port);
@@ -57,10 +57,10 @@ public class ForwardClient implements Runnable{
 					data_size = forward_in.available();					
 					do {
 						if (getBufferInPosition() == 0) {						
-							if (data_size > 1024) {
-								forward_in.read(data_to_receive, 0, 1023);
-								buffer_in.put(data_to_receive, 0, 1023);
-								data_size -= 1024;
+							if (data_size >= 10240) {
+								forward_in.read(data_to_receive, 0, 10239);
+								buffer_in.put(data_to_receive, 0, 10239);
+								data_size -= 10240;
 							}
 							else {
 								forward_in.read(data_to_receive, 0, data_size);
@@ -97,17 +97,27 @@ public class ForwardClient implements Runnable{
 		
 	}
 	
-	public byte[] readInputBuffer(){
+	public byte[] readInputBuffer(int position){
 		byte[] return_data = null;
-		int currentPosition = buffer_in.position();
-		if (currentPosition > 0) {
+		byte[] tmp = null;
+		
+		int currentPosition = buffer_in.position();		
+		if ((position < currentPosition) && (position > 0)) {
+			return_data = new byte[position];
+			buffer_in.rewind();
+			buffer_in.get(return_data, 0, position);
+			tmp = new byte[currentPosition - position];
+			buffer_in.get(tmp);
+			buffer_in.rewind();
+			buffer_in.put(tmp);
+		}
+		else if ((position == currentPosition) && (currentPosition > 0)) {
 			return_data = new byte[currentPosition];
 			buffer_in.rewind();
 			buffer_in.get(return_data, 0, currentPosition);
 			buffer_in.rewind();
-		}		
-		System.out.println("Thread: " + Thread.currentThread().getName() + 
-     		   			   " | *** Byte Input Stream Size: " + currentPosition);		
+		}
+				
 		return return_data;
 	}
 	
@@ -173,6 +183,10 @@ public class ForwardClient implements Runnable{
                 		   " Buffer IN, " + buffer_in.toString() + ", " +
                 		   " Buffer OUT: " + buffer_out.toString() + ", " + 
                 		   " Socket INFO: " + forward_socket.toString());
+	}
+	
+	public String getThreadID() {
+		return Thread.currentThread().getName();
 	}
 }
 

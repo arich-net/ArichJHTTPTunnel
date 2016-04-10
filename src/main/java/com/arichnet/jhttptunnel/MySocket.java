@@ -162,4 +162,8 @@ public class MySocket {
 		return socket.isConnected();
 	}
 	
+	public boolean isClosed() {
+		return socket.isClosed();
+	}
+	
 }
