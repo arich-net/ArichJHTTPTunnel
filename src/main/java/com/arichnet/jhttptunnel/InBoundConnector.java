@@ -32,56 +32,48 @@ package com.arichnet.jhttptunnel;
 import java.io.*;
 import java.net.*;
 
-public class InBoundConnector extends InBound
-{
+public class InBoundConnector extends InBound {
 	private InputStream in = null;
 	private HttpURLConnection con = null;
 
 	@Override
-	public void connect () throws IOException
-	{
-		close ();
+	public void connect() throws IOException {
+		close();
 		System.out.println("Calling connect from " + this.getClass().getName());
-		String host = getHost ();
-		int port = getPort ();
-		URL url = new URL ("http://" + host + ":" + port + "/index.html?crap=1");
-		con = (HttpURLConnection) url.openConnection ();
-		con.setRequestMethod ("GET");
-		in = con.getInputStream ();
+		String host = getHost();
+		int port = getPort();
+		URL url = new URL("http://" + host + ":" + port + "/index.html?crap=1");
+		con = (HttpURLConnection) url.openConnection();
+		con.setRequestMethod("GET");
+		in = con.getInputStream();
 	}
 
 	@Override
-	public int receiveData (byte[] buf, int s, int l) throws IOException
-	{
+	public int receiveData(byte[] buf, int s, int l) throws IOException {
 		// System.out.println("receiveData: "+l);
-		if (l <= 0)
-		{
+		if (l <= 0) {
 			return -1;
 		}
-		while (true)
-		{
+		while (true) {
 			// if(closed) return -1;
-			try
-			{
-				if (buf == null)
-				{
-					if (l <= 0) return -1;
-					long bar = in.skip (l);
+			try {
+				if (buf == null) {
+					if (l <= 0)
+						return -1;
+					long bar = in.skip(l);
 					l -= bar;
 					continue;
 				}
-				int i = in.read (buf, s, l);
-				if (i > 0)
-				{
+				int i = in.read(buf, s, l);
+				if (i > 0) {
 					return i;
 				}
-				connect ();
+				connect();
 			}
 			// catch(SocketException e){
 			// throw e;
 			// }
-			catch (IOException e)
-			{
+			catch (IOException e) {
 				// System.out.println("2$ "+e);
 				throw e;
 				// connect();
@@ -90,22 +82,16 @@ public class InBoundConnector extends InBound
 	}
 
 	@Override
-	public void close ()
-	{
+	public void close() {
 		// System.out.println("InBound.close: ");
-		if (con != null)
-		{
-			if (in != null)
-			{
-				try
-				{
-					in.close ();
-				}
-				catch (IOException e)
-				{
+		if (con != null) {
+			if (in != null) {
+				try {
+					in.close();
+				} catch (IOException e) {
 				}
 			}
-			con.disconnect ();
+			con.disconnect();
 			con = null;
 		}
 	}

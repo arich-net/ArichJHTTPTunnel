@@ -31,8 +31,7 @@ package com.arichnet.jhttptunnel;
 
 import java.io.*;
 
-abstract class Bound
-{
+abstract class Bound {
 	private String host = null;
 	private int port = 80;
 	private Proxy proxy = null;
@@ -49,7 +48,7 @@ abstract class Bound
 	public void setProxy(Proxy proxy) {
 		this.proxy = proxy;
 	}
-	
+
 	public void setSid(int sid) {
 		this.sid = sid;
 	}
@@ -65,12 +64,12 @@ abstract class Bound
 	protected Proxy getProxy() {
 		return proxy;
 	}
-	
+
 	protected int getSid() {
 		return sid;
 	}
 
-	abstract public void connect () throws IOException;
+	abstract public void connect() throws IOException;
 
-	abstract public void close () throws IOException;
+	abstract public void close() throws IOException;
 }

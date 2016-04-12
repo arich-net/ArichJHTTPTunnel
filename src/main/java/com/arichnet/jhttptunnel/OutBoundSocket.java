@@ -32,9 +32,8 @@ package com.arichnet.jhttptunnel;
 import java.net.*;
 import java.io.*;
 
-public class OutBoundSocket extends OutBound
-{
-	static final private byte[] _rn = "\r\n".getBytes ();
+public class OutBoundSocket extends OutBound {
+	static final private byte[] _rn = "\r\n".getBytes();
 
 	private Socket socket = null;
 	private InputStream in = null;
@@ -42,109 +41,92 @@ public class OutBoundSocket extends OutBound
 
 	@Override
 	public void connect() throws IOException {
-		close ();
+		close();
 		System.out.println("Calling connect from " + this.getClass().getName());
 
-		String host = getHost ();
-		int port = getPort ();
+		String host = getHost();
+		int port = getPort();
 		int sid = getSid();
 
 		String request = "/index.html?crap=" + sid + " HTTP/1.1";
 
-		Proxy p = getProxy ();
+		Proxy p = getProxy();
 		if (p == null) {
-			socket = new Socket (host, port);
+			socket = new Socket(host, port);
 			request = "POST " + request;
-		}
-		else {
-			String phost = p.getHost ();
-			int pport = p.getPort ();
-			socket = new Socket (phost, pport);
+		} else {
+			String phost = p.getHost();
+			int pport = p.getPort();
+			socket = new Socket(phost, pport);
 			request = "POST http://" + host + ":" + port + request;
 		}
-		socket.setTcpNoDelay (true);
+		socket.setTcpNoDelay(true);
 
-		in = socket.getInputStream ();
-		out = socket.getOutputStream ();
-		out.write (request.getBytes());
-		out.write (_rn);
-		out.write (("Content-Length: " + getContentLength()).getBytes());
-		out.write (_rn);
-		out.write ("Connection: close".getBytes());
-		out.write (_rn);
-		out.write (("Host: " + host + ":" + port).getBytes());
-		out.write (_rn);
+		in = socket.getInputStream();
+		out = socket.getOutputStream();
+		out.write(request.getBytes());
+		out.write(_rn);
+		out.write(("Content-Length: " + getContentLength()).getBytes());
+		out.write(_rn);
+		out.write("Connection: close".getBytes());
+		out.write(_rn);
+		out.write(("Host: " + host + ":" + port).getBytes());
+		out.write(_rn);
 
-		out.write (_rn);
-		out.flush ();
+		out.write(_rn);
+		out.flush();
 
 		sendCount = getContentLength();
 		// setOutputStream(out);
 	}
 
 	@Override
-	public void sendData (byte[] foo, int s, int l, 
-			              boolean flush) throws IOException {
+	public void sendData(byte[] foo, int s, int l, boolean flush) throws IOException {
 		// System.out.println("sendDtat: l="+l+" sendCount="+sendCount);
-		if (l <= 0) return;
-		if (sendCount <= 0)	{
-			System.out.println ("1#");
-			connect ();
+		if (l <= 0)
+			return;
+		if (sendCount <= 0) {
+			System.out.println("1#");
+			connect();
 		}
 
 		int retry = 2;
 		while (retry > 0) {
-			try
-			{
-				out.write (foo, s, l);
-				if (flush)
-				{
-					out.flush ();
+			try {
+				out.write(foo, s, l);
+				if (flush) {
+					out.flush();
 				}
 				sendCount -= l;
 				return;
-			}
-			catch (SocketException e)
-			{
+			} catch (SocketException e) {
 				// System.out.println("2# "+e+" "+l+" "+flush);
 				throw e;
-			}
-			catch (IOException e)
-			{
+			} catch (IOException e) {
 				// System.out.println("21# "+e+" "+l+" "+flush);
-				connect ();
+				connect();
 			}
 			retry--;
 		}
 	}
 
 	@Override
-	public void close () throws IOException
-	{
-		if (socket != null)
-		{
-			if (out != null)
-			{
-				try
-				{
-					out.flush ();
-					out.close ();
-				}
-				catch (IOException e)
-				{
+	public void close() throws IOException {
+		if (socket != null) {
+			if (out != null) {
+				try {
+					out.flush();
+					out.close();
+				} catch (IOException e) {
 				}
 			}
-			if (in != null)
-			{
-				try
-				{
-					in.close ();
-				}
-				catch (IOException e)
-				{
+			if (in != null) {
+				try {
+					in.close();
+				} catch (IOException e) {
 				}
 			}
-			socket.close ();
+			socket.close();
 			socket = null;
 		}
 	}

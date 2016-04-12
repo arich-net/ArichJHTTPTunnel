@@ -29,15 +29,12 @@
 
 package com.arichnet.jhttptunnel;
 
-public class JHttpTunnelException extends java.io.IOException
-{
-	public JHttpTunnelException ()
-	{
-		super ();
+public class JHttpTunnelException extends java.io.IOException {
+	public JHttpTunnelException() {
+		super();
 	}
 
-	public JHttpTunnelException (String s)
-	{
-		super (s);
+	public JHttpTunnelException(String s) {
+		super(s);
 	}
 }

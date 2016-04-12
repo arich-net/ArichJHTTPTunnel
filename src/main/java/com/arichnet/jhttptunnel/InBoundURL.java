@@ -32,61 +32,51 @@ package com.arichnet.jhttptunnel;
 import java.net.*;
 import java.io.*;
 
-public class InBoundURL extends InBound
-{
+public class InBoundURL extends InBound {
 	private InputStream in = null;
 	private URLConnection con = null;
 
 	@Override
-	public void connect () throws IOException
-	{
-		close ();
-		String host = getHost ();
-		int port = getPort ();
-		URL url = new URL ("http://" + host + ":" + port + "/index.html?crap=1");
-		con = url.openConnection ();
-		con.setUseCaches (false);
-		con.setDoOutput (false);
-		con.connect ();
-		in = con.getInputStream ();
+	public void connect() throws IOException {
+		close();
+		String host = getHost();
+		int port = getPort();
+		URL url = new URL("http://" + host + ":" + port + "/index.html?crap=1");
+		con = url.openConnection();
+		con.setUseCaches(false);
+		con.setDoOutput(false);
+		con.connect();
+		in = con.getInputStream();
 	}
 
 	@Override
-	public int receiveData (byte[] buf, int s, int l) throws IOException
-	{
+	public int receiveData(byte[] buf, int s, int l) throws IOException {
 		// System.out.println("receiveData: "+l);
-		if (l <= 0)
-		{
-			System.out.println ("receiveData: " + l);
+		if (l <= 0) {
+			System.out.println("receiveData: " + l);
 		}
-		if (l <= 0) return -1;
-		while (true)
-		{
+		if (l <= 0)
+			return -1;
+		while (true) {
 			// if(closed) return -1;
-			try
-			{
-				if (buf == null)
-				{
-					if (l <= 0) return -1;
-					long bar = in.skip (l);
+			try {
+				if (buf == null) {
+					if (l <= 0)
+						return -1;
+					long bar = in.skip(l);
 					l -= bar;
 					continue;
 				}
-				int i = in.read (buf, s, l);
-				if (i > 0)
-				{
+				int i = in.read(buf, s, l);
+				if (i > 0) {
 					return i;
 				}
 				// System.out.println("1$ i="+i+" close="+closed);
 				// System.out.println("1$ i="+i);
-				connect ();
-			}
-			catch (SocketException e)
-			{
+				connect();
+			} catch (SocketException e) {
 				throw e;
-			}
-			catch (IOException e)
-			{
+			} catch (IOException e) {
 				// System.out.println("2$ "+e);
 				throw e;
 				// connect();
@@ -95,18 +85,12 @@ public class InBoundURL extends InBound
 	}
 
 	@Override
-	public void close () throws IOException
-	{
-		if (con != null)
-		{
-			if (in != null)
-			{
-				try
-				{
-					in.close ();
-				}
-				catch (IOException e)
-				{
+	public void close() throws IOException {
+		if (con != null) {
+			if (in != null) {
+				try {
+					in.close();
+				} catch (IOException e) {
 				}
 			}
 			con = null;

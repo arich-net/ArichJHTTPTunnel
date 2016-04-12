@@ -29,71 +29,67 @@ import java.net.*;
 import java.util.*;
 
 public class MySocket {
-	
+
 	Socket socket = null;
 	private DataInputStream dataInputStream = null;
 	private OutputStream os = null;
 
 	MySocket(Socket s) throws IOException {
-		try	{
+		try {
 			s.setTcpNoDelay(true);
-		}
-		catch(Exception e) {
-			System.out.println (e + " tcpnodelay");
+		} catch (Exception e) {
+			System.out.println(e + " tcpnodelay");
 		}
 		socket = s;
 		BufferedInputStream bis = new BufferedInputStream(s.getInputStream());
-		dataInputStream = new DataInputStream (bis);
+		dataInputStream = new DataInputStream(bis);
 		os = s.getOutputStream();
 	}
 
-	public InputStream getInputStream () {
-		try	{
+	public InputStream getInputStream() {
+		try {
 			return dataInputStream;
+		} catch (Exception e) {
 		}
-		catch (Exception e)	{ }
 		return null;
 	}
 
-	public void close()	{
-		try	{
-			socket.shutdownOutput ();
-			dataInputStream.close ();
-			os.close ();
-			socket.close ();
+	public void close() {
+		try {
+			socket.shutdownOutput();
+			dataInputStream.close();
+			os.close();
+			socket.close();
+		} catch (IOException e) {
 		}
-		catch (IOException e) {	}
 	}
 
 	public int read(byte[] buf, int off, int len) {
-		try	{
-			return dataInputStream.read (buf, off, len);
-		}
-		catch(IOException e) {
+		try {
+			return dataInputStream.read(buf, off, len);
+		} catch (IOException e) {
 			return -1;
 		}
 	}
 
 	public int readByte() {
-		try	{
+		try {
 			int r = dataInputStream.readByte();
 			return (r & 0xff);
-		}
-		catch (IOException e) {
+		} catch (IOException e) {
 			return (-1);
 		}
 	}
 
-	/* Method is being deprecated it should be used BufferedReader instead*/
+	/* Method is being deprecated it should be used BufferedReader instead */
 	public String readLine() {
 		try {
 			return (dataInputStream.readLine());
-		}
-		catch(IOException e) {
+		} catch (IOException e) {
 			return (null);
 		}
 	}
-	
+
 	public int available() throws IOException {
 		int return_value;
 		return_value = dataInputStream.available();
@@ -104,15 +100,15 @@ public class MySocket {
 		os.write(buf, offset, length);
 	}
 
-	public void p (String s) throws IOException	{
+	public void p(String s) throws IOException {
 		os.write(s.getBytes());
 	}
 
-	public void print (String s) throws IOException	{
+	public void print(String s) throws IOException {
 		os.write(s.getBytes());
 	}
 
-	public void p(byte[] s) throws IOException	{
+	public void p(byte[] s) throws IOException {
 		os.write(s);
 	}
 
@@ -120,50 +116,48 @@ public class MySocket {
 		os.write(s);
 	}
 
-	public void p (char c) throws IOException {
-		os.write (c);
+	public void p(char c) throws IOException {
+		os.write(c);
 	}
 
-	public void print (char c) throws IOException {
-		os.write (c);
+	public void print(char c) throws IOException {
+		os.write(c);
 	}
 
-	public void p (int c) throws IOException {
+	public void p(int c) throws IOException {
 		os.write(Integer.toString(c).getBytes());
 	}
 
-	public void print (int c) throws IOException {
-		os.write (Integer.toString(c).getBytes());
+	public void print(int c) throws IOException {
+		os.write(Integer.toString(c).getBytes());
 	}
 
 	static final private byte[] _rn = "\r\n".getBytes();
 
 	public void pn(String s) throws IOException {
-		println (s);
+		println(s);
 	}
 
 	public void println(String s) throws IOException {
-		print (s);
-		print (_rn);
+		print(s);
+		print(_rn);
 	}
 
 	public void flush() throws IOException {
-		os.flush ();
+		os.flush();
 	}
-	
+
 	public void getStatus() {
-		System.out.println("Thread: " + Thread.currentThread().getName() +
-						   " | Socket Status: Bound=>" + socket.isBound() + 
-						   " Closed=>" + socket.isClosed() + 
-						   " Connected=>" + socket.isConnected());
+		System.out.println("Thread: " + Thread.currentThread().getName() + " | Socket Status: Bound=>"
+				+ socket.isBound() + " Closed=>" + socket.isClosed() + " Connected=>" + socket.isConnected());
 	}
-	
+
 	public boolean isConnected() {
 		return socket.isConnected();
 	}
-	
+
 	public boolean isClosed() {
 		return socket.isClosed();
 	}
-	
+
 }

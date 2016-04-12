@@ -21,7 +21,7 @@
  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
- 
+
 package com.arichnet.jhttptunnel;
 
 import java.io.*;
@@ -29,7 +29,7 @@ import java.net.*;
 import java.util.*;
 
 public class JHttpTunnelServer extends Thread {
-	
+
 	static int connections = 0;
 	static int client_connections = 0;
 	static int source_connections = 0;
@@ -39,54 +39,46 @@ public class JHttpTunnelServer extends Thread {
 	static String myaddress = null;
 	static String myURL = null;
 
-	//static String forward_host;
 	private String forward_host;
-	//static int forward_port;
 	private int forward_port;
-	//static ForwardClient forward_client;
-	//private ForwardClient forward_client;
-	//static Hashtable<String, ForwardClient> clientsTable = null;
 	private Hashtable<String, ForwardClient> clientsTable;
 
-	JHttpTunnelServer(int port)	{
-		super ();
+	JHttpTunnelServer(int port) {
+		super();
 		connections = 0;
-		try	{
-			serverSocket = new ServerSocket(port);			
+		try {
+			serverSocket = new ServerSocket(port);
+		} catch (IOException e) {
+			System.out.println("ServerSocket error" + e);
+			System.exit(1);
 		}
-		catch (IOException e) {
-			System.out.println("ServerSocket error"+e );
-			System.exit (1);
-		}
-		try	{
+		try {
 			if (myaddress == null)
 				myURL = "http://" + InetAddress.getLocalHost().getHostAddress() + ":" + port;
 			else
 				myURL = "http://" + myaddress + ":" + port;
-				System.out.println("myURL: "+myURL);
-		}
-		catch (Exception e)	{
-			System.out.println (e);
+			System.out.println("myURL: " + myURL);
+		} catch (Exception e) {
+			System.out.println(e);
 		}
 	}
 
-	JHttpTunnelServer (int lport, String fhost, int fport) {
+	JHttpTunnelServer(int lport, String fhost, int fport) {
 		this(lport);
 		this.forward_host = fhost;
 		this.forward_port = fport;
-		//this.forward_client = new ForwardClient();
+		// this.forward_client = new ForwardClient();
 		this.clientsTable = new Hashtable<String, ForwardClient>();
 	}
-	
+
 	@Override
 	public void run() {
 		Socket socket = null;
-		while(true) {
-			try	{
+		while (true) {
+			try {
 				socket = serverSocket.accept();
-			}
-			catch(IOException e) {
-				System.out.println ("Socket accept error, probably the port is busy");
+			} catch (IOException e) {
+				System.out.println("Socket accept error, probably the port is busy");
 				System.exit(1);
 			}
 			connections++;
@@ -94,45 +86,42 @@ public class JHttpTunnelServer extends Thread {
 			final Socket _socket = socket;
 			final String _host = forward_host;
 			final int _port = forward_port;
-			//final ForwardClient _forwardclient = forward_client;
-			final Hashtable<String, ForwardClient> _clientsTable = clientsTable; 
-			
+			// final ForwardClient _forwardclient = forward_client;
+			final Hashtable<String, ForwardClient> _clientsTable = clientsTable;
+
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
-					// synchronized(_forwardclient) {
-						try	{							
-							//(new JHTTPServerConnection(_socket, _host, _port, _forwardclient)).newsocket();
-							(new JHTTPServerConnection(_socket, _host, _port, _clientsTable)).newsocket();
-						}
-						catch(Exception e)	{ }
-					// }
+					try {
+						(new JHttpServerConnection(_socket, _host, _port, _clientsTable)).newsocket();
+					} catch (Exception e) {
+					}
 				}
 			}).start();
 		}
 	}
-	
+
 	public static void main(String[] args) {
 		int port = 8888;
 		if (args.length != 0) {
 			String _port = args[0];
 			if (_port != null) {
-				port = Integer.parseInt (_port);
+				port = Integer.parseInt(_port);
 			}
 		}
 
 		String fhost = null;
 		int fport = 0;
-		String _fw = System.getProperty ("forward");
-		
-		if (_fw != null && _fw.indexOf (':') != -1) {
+		String _fw = System.getProperty("forward");
+
+		if (_fw != null && _fw.indexOf(':') != -1) {
 			fport = Integer.parseInt(_fw.substring(_fw.lastIndexOf(':') + 1));
-			fhost = _fw.substring (0, _fw.lastIndexOf(':'));
+			fhost = _fw.substring(0, _fw.lastIndexOf(':'));
 		}
 		if (fport == 0 || fhost == null) {
-			System.err.println ("forward-port is not given");
-			System.exit (1);
+			System.err.println("forward-port is not given");
+			System.exit(1);
 		}
-		(new JHttpTunnelServer (port, fhost, fport)).start ();
+		(new JHttpTunnelServer(port, fhost, fport)).start();
 	}
 }

@@ -29,42 +29,35 @@
 
 package com.arichnet.jhttptunnel;
 
-class Proxy
-{
+class Proxy {
 	String host;
 	int port;
 	String auth_name = null;
 	String auth_passwd = null;
 
-	Proxy (String host, int port)
-	{
+	Proxy(String host, int port) {
 		this.host = host;
 		this.port = port;
 	}
 
-	String getHost ()
-	{
+	String getHost() {
 		return host;
 	}
 
-	int getPort ()
-	{
+	int getPort() {
 		return port;
 	}
 
-	void setAuth (String name, String passwd)
-	{
+	void setAuth(String name, String passwd) {
 		this.auth_name = name;
 		this.auth_passwd = passwd;
 	}
 
-	String getAuthName ()
-	{
+	String getAuthName() {
 		return auth_name;
 	}
 
-	String getAuthPasswd ()
-	{
+	String getAuthPasswd() {
 		return auth_passwd;
 	}
 }

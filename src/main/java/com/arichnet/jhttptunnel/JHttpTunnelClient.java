@@ -32,8 +32,7 @@ package com.arichnet.jhttptunnel;
 import java.io.*;
 import java.lang.*;
 
-public class JHttpTunnelClient
-{
+public class JHttpTunnelClient {
 	// static final private int CONTENT_LENGTH=1024;
 	static final private int CONTENT_LENGTH = 1024 * 10;
 
@@ -54,7 +53,7 @@ public class JHttpTunnelClient
 		this.dest_host = host;
 		this.dest_port = port;
 	}
-	
+
 	public JHttpTunnelClient(String host, int port, int sid) {
 		this.dest_host = host;
 		this.dest_port = port;
@@ -65,24 +64,28 @@ public class JHttpTunnelClient
 		this.proxy = new Proxy(host, port);
 	}
 
-	public void connect () throws JHttpTunnelException	{
+	public void connect() throws JHttpTunnelException {
 
 		if (ib == null) {
-			/*try{ Class
+			/*
+			 * try{ Class
 			 * c=Class.forName("com.arichnet.jhttptunnel.InBoundSocket");
-			 * ib=(InBound)c.newInstance(); } catch(Exception e){} */
-			throw new JHttpTunnelException ("InBound is not given");
+			 * ib=(InBound)c.newInstance(); } catch(Exception e){}
+			 */
+			throw new JHttpTunnelException("InBound is not given");
 		}
 		ib.setHost(dest_host);
 		ib.setPort(dest_port);
 		ib.setProxy(proxy);
 		ib.setSid(session_id);
 
-		if (ob == null)	{
-			/*try{ Class
+		if (ob == null) {
+			/*
+			 * try{ Class
 			 * c=Class.forName("com.arichnet.jhttptunnel.OutBoundSocket");
-			 * ob=(OutBound)c.newInstance(); } catch(Exception e){} */
-			throw new JHttpTunnelException ("OutBound is not given");
+			 * ob=(OutBound)c.newInstance(); } catch(Exception e){}
+			 */
+			throw new JHttpTunnelException("OutBound is not given");
 		}
 		ob.setHost(dest_host);
 		ob.setPort(dest_port);
@@ -90,38 +93,38 @@ public class JHttpTunnelClient
 		ob.setContentLength(CONTENT_LENGTH);
 		ob.setSid(session_id);
 
-		try	{
-			getOutbound ();
-			getInbound ();
-		}
-		catch(Exception e)	{
-			throw new JHttpTunnelException(e.toString ());
+		try {
+			getOutbound();
+			getInbound();
+		} catch (Exception e) {
+			throw new JHttpTunnelException(e.toString());
 		}
 	}
 
 	private void getOutbound() throws IOException {
 		// System.out.println("getOutbound()");
-		if (closed)	{
-			throw new IOException ("broken pipe");
+		if (closed) {
+			throw new IOException("broken pipe");
 		}
-		ob.connect ();
+		ob.connect();
 		if (!init) {
-			openChannel (1);
+			openChannel(1);
 			init = true;
 		}
 	}
 
-	private void getInbound () throws IOException {
+	private void getInbound() throws IOException {
 		// System.out.println("getInbound()");
-		ib.connect ();
+		ib.connect();
 	}
 
 	private final byte[] command = new byte[4];
 
 	public void openChannel(int i) throws IOException {
-		//System.out.println("sendOpen: " + JHttpTunnel.TUNNEL_OPEN);
-		//System.out.println("Stack Trace: " + Thread.currentThread().getStackTrace()[2].getMethodName());
-		
+		// System.out.println("sendOpen: " + JHttpTunnel.TUNNEL_OPEN);
+		// System.out.println("Stack Trace: " +
+		// Thread.currentThread().getStackTrace()[2].getMethodName());
+
 		command[0] = JHttpTunnel.TUNNEL_OPEN;
 		command[1] = 0;
 		command[2] = 1;
@@ -129,36 +132,37 @@ public class JHttpTunnelClient
 		ob.sendData(command, 0, 4, true);
 	}
 
-	public void sendDisconnect() throws IOException	{
+	public void sendDisconnect() throws IOException {
 		// System.out.println("sendDisconnect: "+sendCount);
 		command[0] = JHttpTunnel.TUNNEL_DISCONNECT;
 		ob.sendData(command, 0, 1, true);
 	}
 
-	public void sendClose() throws IOException	{
+	public void sendClose() throws IOException {
 		// System.out.println("sendClose: ");
 		command[0] = JHttpTunnel.TUNNEL_CLOSE;
 		ob.sendData(command, 0, 1, true);
 	}
 
-	public void sendPad1(boolean flush) throws IOException	{
+	public void sendPad1(boolean flush) throws IOException {
 		command[0] = JHttpTunnel.TUNNEL_PAD1;
 		ob.sendData(command, 0, 1, flush);
 	}
 
-	public void write(byte[] foo, int s, int l) throws IOException	{
-		System.out.println("write: l="+l+", sendCount="+ ob.sendCount);
-		if (l <= 0) return;
+	public void write(byte[] foo, int s, int l) throws IOException {
+		System.out.println("write: l=" + l + ", sendCount=" + ob.sendCount);
+		if (l <= 0)
+			return;
 
 		if (ob.sendCount <= 4) {
-			System.out.println("ob.sendCount<=4: "+ob.sendCount);
+			System.out.println("ob.sendCount<=4: " + ob.sendCount);
 			if (0 < ob.sendCount) {
 				while (ob.sendCount > 1) {
-					sendPad1 (false);
+					sendPad1(false);
 				}
-				sendDisconnect ();
+				sendDisconnect();
 			}
-			getOutbound ();
+			getOutbound();
 		}
 
 		while ((ob.sendCount - 1 - 3) < l) {
@@ -167,79 +171,72 @@ public class JHttpTunnelClient
 			command[1] = (byte) ((len >>> 8) & 0xff);
 			command[2] = (byte) (len & 0xff);
 			// System.out.println("send "+(len));
-			ob.sendData (command, 0, 3, true);
-			ob.sendData (foo, s, len, true);
+			ob.sendData(command, 0, 3, true);
+			ob.sendData(foo, s, len, true);
 			s += len;
 			l -= len;
 
 			// sendCount=1;
 
-			sendDisconnect ();
+			sendDisconnect();
 			if (l > 0) {
-				getOutbound ();
+				getOutbound();
 			}
 		}
-		if (l <= 0) return;
+		if (l <= 0)
+			return;
 
 		command[0] = JHttpTunnel.TUNNEL_DATA;
 		command[1] = (byte) ((l >>> 8) & 0xff);
 		command[2] = (byte) (l & 0xff);
-		ob.sendData (command, 0, 3, false);
-		ob.sendData (foo, s, l, true);
+		ob.sendData(command, 0, 3, false);
+		ob.sendData(foo, s, l, true);
 	}
 
 	int buf_len = 0;
 
-	public int read (byte[] foo, int s, int l) throws IOException
-	{
-		if (closed) return -1;
+	public int read(byte[] foo, int s, int l) throws IOException {
+		if (closed)
+			return -1;
 
-		try
-		{
-			if (buf_len > 0)
-			{
+		try {
+			if (buf_len > 0) {
 				int len = buf_len;
-				if (l < buf_len)
-				{
+				if (l < buf_len) {
 					len = l;
 				}
-				int i = ib.receiveData (foo, s, len);
+				int i = ib.receiveData(foo, s, len);
 				buf_len -= i;
 				return i;
 			}
 
 			int len = 0;
-			while (!closed)
-			{
-				int i = ib.receiveData (foo, s, 1);
-				if (i <= 0)
-				{
+			while (!closed) {
+				int i = ib.receiveData(foo, s, 1);
+				if (i <= 0) {
 					return -1;
 				}
 				int request = foo[s] & 0xff;
 				// System.out.println("request: "+request);
-				if ((request & JHttpTunnel.TUNNEL_SIMPLE) == 0)
-				{
-					i = ib.receiveData (foo, s, 1);
+				if ((request & JHttpTunnel.TUNNEL_SIMPLE) == 0) {
+					i = ib.receiveData(foo, s, 1);
 					len = (((foo[s]) << 8) & 0xff00);
-					i = ib.receiveData (foo, s, 1);
+					i = ib.receiveData(foo, s, 1);
 					len = len | (foo[s] & 0xff);
 				}
 				// System.out.println("request: "+request);
-				switch (request)
-				{
+				switch (request) {
 				case JHttpTunnel.TUNNEL_DATA:
 					buf_len = len;
 					// System.out.println("buf_len="+buf_len);
-					if (l < buf_len)
-					{
+					if (l < buf_len) {
 						len = l;
 					}
 					int orgs = s;
-					while (len > 0)
-					{
-						i = ib.receiveData (foo, s, len);
-						if (i < 0) break;
+					while (len > 0) {
+						i = ib.receiveData(foo, s, len);
+						if (i < 0)
+							break;
 						buf_len -= i;
 						s += i;
 						len -= i;
@@ -247,14 +244,13 @@ public class JHttpTunnelClient
 					// System.out.println("receiveData: "+(s-orgs));
 					return s - orgs;
 				case JHttpTunnel.TUNNEL_PADDING:
-					ib.receiveData (null, 0, len);
+					ib.receiveData(null, 0, len);
 					continue;
 				case JHttpTunnel.TUNNEL_ERROR:
 					byte[] error = new byte[len];
-					ib.receiveData (error, 0, len);
+					ib.receiveData(error, 0, len);
 					// System.out.println(new String(error, 0, len));
-					throw new IOException ("JHttpTunnel: "
-							+ new String (error, 0, len));
+					throw new IOException("JHttpTunnel: " + new String(error, 0, len));
 				case JHttpTunnel.TUNNEL_PAD1:
 					continue;
 				case JHttpTunnel.TUNNEL_CLOSE:
@@ -269,17 +265,12 @@ public class JHttpTunnelClient
 					// System.out.println("request="+request);
 					// System.out.println(Integer.toHexString(request&0xff)+
 					// " "+new Character((char)request));
-					throw new IOException ("JHttpTunnel: protocol error 0x"
-							+ Integer.toHexString (request & 0xff));
+					throw new IOException("JHttpTunnel: protocol error 0x" + Integer.toHexString(request & 0xff));
 				}
 			}
-		}
-		catch (IOException e)
-		{
+		} catch (IOException e) {
 			throw e;
-		}
-		catch (Exception e)
-		{
+		} catch (Exception e) {
 			// System.out.println("JHttpTunnelClient.read: "+e);
 		}
 		return -1;
@@ -287,30 +278,26 @@ public class JHttpTunnelClient
 
 	private InputStream in = null;
 
-	public InputStream getInputStream ()
-	{
-		if (in != null) return in;
-		in = new InputStream ()
-		{
+	public InputStream getInputStream() {
+		if (in != null)
+			return in;
+		in = new InputStream() {
 			byte[] tmp = new byte[1];
 
 			@Override
-			public int read () throws IOException
-			{
-				int i = JHttpTunnelClient.this.read (tmp, 0, 1);
+			public int read() throws IOException {
+				int i = JHttpTunnelClient.this.read(tmp, 0, 1);
 				return (i == -1 ? -1 : tmp[0]);
 			}
 
 			@Override
-			public int read (byte[] foo) throws IOException
-			{
-				return JHttpTunnelClient.this.read (foo, 0, foo.length);
+			public int read(byte[] foo) throws IOException {
+				return JHttpTunnelClient.this.read(foo, 0, foo.length);
 			}
 
 			@Override
-			public int read (byte[] foo, int s, int l) throws IOException
-			{
-				return JHttpTunnelClient.this.read (foo, s, l);
+			public int read(byte[] foo, int s, int l) throws IOException {
+				return JHttpTunnelClient.this.read(foo, s, l);
 			}
 		};
 		return in;
@@ -319,39 +306,46 @@ public class JHttpTunnelClient
 	private OutputStream out = null;
 
 	public OutputStream getOutputStream() {
-		if (out != null) return out;
-		out = new OutputStream () {
+		if (out != null)
+			return out;
+		out = new OutputStream() {
 			final byte[] tmp = new byte[1];
 
 			@Override
 			public void write(int foo) throws IOException {
 				tmp[0] = (byte) foo;
-				JHttpTunnelClient.this.write (tmp, 0, 1);
+				JHttpTunnelClient.this.write(tmp, 0, 1);
 			}
 
 			@Override
 			public void write(byte[] foo) throws IOException {
-				JHttpTunnelClient.this.write (foo, 0, foo.length);
+				JHttpTunnelClient.this.write(foo, 0, foo.length);
 			}
 
 			@Override
-			public void write (byte[] foo, int s, int l) throws IOException	{
-				JHttpTunnelClient.this.write (foo, s, l);
+			public void write(byte[] foo, int s, int l) throws IOException {
+				JHttpTunnelClient.this.write(foo, s, l);
 			}
 		};
 		return out;
 	}
 
-	public void close()	{
+	public void close() {
 		// System.out.println("close");
-		try	{ sendClose (); }
-		catch(Exception e)	{ }
-		
-		try	{ ib.close (); }
-		catch (Exception e)	{ }
-		
-		try	{ ob.close ();	}
-		catch (Exception e)	{ }
+		try {
+			sendClose();
+		} catch (Exception e) {
+		}
+
+		try {
+			ib.close();
+		} catch (Exception e) {
+		}
+
+		try {
+			ob.close();
+		} catch (Exception e) {
+		}
 		closed = true;
 	}
 
@@ -359,12 +353,12 @@ public class JHttpTunnelClient
 		this.ib = ib;
 	}
 
-	public void setOutBound (OutBound ob)
-	{
+	public void setOutBound(OutBound ob) {
 		this.ob = ob;
 	}
 
-	/*public static void main(String[] arg){ try{
+	/*
+	 * public static void main(String[] arg){ try{
 	 *
 	 * if(arg.length==0){ System.err.println("Enter hostname[:port]");
 	 * System.exit(1); }
@@ -412,5 +406,6 @@ public class JHttpTunnelClient
 	 * if(i>0){ jout.write(tmp, 0, i); continue; } break; } } catch(Exception
 	 * e){ } try{ socket.close(); jin.close(); jhtc.close(); } catch(Exception
 	 * e){ } } } catch(JHttpTunnelException e){ System.err.println(e); }
-	 * catch(IOException e){ System.err.println(e); } } */
+	 * catch(IOException e){ System.err.println(e); } }
+	 */
 }

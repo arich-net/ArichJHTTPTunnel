@@ -32,66 +32,55 @@ package com.arichnet.jhttptunnel;
 import java.io.*;
 import java.net.*;
 
-public class OutBoundConnector extends OutBound
-{
+public class OutBoundConnector extends OutBound {
 	private InputStream in = null;
 	private OutputStream out = null;
 	private HttpURLConnection con = null;
-	private final byte[] _TUNNEL_DISCONNECT =
-	{
-		(byte) 0x47
-	};
+	private final byte[] _TUNNEL_DISCONNECT = { (byte) 0x47 };
 
 	private int count = 0;
 
 	@Override
-	public void connect () throws IOException
-	{
+	public void connect() throws IOException {
 		// System.out.println("OutBound: connect");
 		// close();
 
-		String host = getHost ();
-		int port = getPort ();
+		String host = getHost();
+		int port = getPort();
 
-		URL url = new URL ("http://" + host + ":" + port + "/index.html?crap=1"
-				+ "&count=" + count);
-		con = (HttpURLConnection) url.openConnection ();
+		URL url = new URL("http://" + host + ":" + port + "/index.html?crap=1" + "&count=" + count);
+		con = (HttpURLConnection) url.openConnection();
 		count++;
-		con.setRequestMethod ("POST");
-		out = con.getOutputStream ();
-		sendCount = getContentLength ();
+		con.setRequestMethod("POST");
+		out = con.getOutputStream();
+		sendCount = getContentLength();
 	}
 
 	@Override
-	public synchronized void sendData (byte[] foo, int s, int l, boolean flush)
-			throws IOException
-	{
-		// System.out.println("sendData: l="+l+" sendCount="+sendCount+" flush="+flush+" "+Integer.toHexString(foo[s]));
-		if (l <= 0) return;
+	public synchronized void sendData(byte[] foo, int s, int l, boolean flush) throws IOException {
+		// System.out.println("sendData: l="+l+" sendCount="+sendCount+"
+		// flush="+flush+" "+Integer.toHexString(foo[s]));
+		if (l <= 0)
+			return;
 
-		if (con == null)
-		{
-			connect ();
+		if (con == null) {
+			connect();
 		}
 
-		if (sendCount <= 0)
-		{
-			connect ();
+		if (sendCount <= 0) {
+			connect();
 		}
 
 		int retry = 2;
-		while (retry > 0)
-		{
-			try
-			{
-				out.write (foo, s, l);
+		while (retry > 0) {
+			try {
+				out.write(foo, s, l);
 				sendCount -= l;
-				if (true)
-				{
+				if (true) {
 					// if(flush){
 					// out.write(_TUNNEL_DISCONNECT, 0, 1);
 					// }
-					out.flush ();
+					out.flush();
 					// sendCount=0;
 					return;
 				}
@@ -102,48 +91,39 @@ public class OutBoundConnector extends OutBound
 			// throw e;
 			// //connect();
 			// }
-			catch (IOException e)
-			{
+			catch (IOException e) {
 				// System.out.println("2# "+e+" "+l+" "+flush);
 				// System.out.println("2# "+e);
-				connect ();
+				connect();
 			}
 			retry--;
 		}
 	}
 
 	@Override
-	public void close () throws IOException
-	{
+	public void close() throws IOException {
 		// System.out.println("OutBound: "+this+".close() con="+con+" in="+in);
-		if (con != null)
-		{
-			if (out != null)
-			{
-				try
-				{
-					out.close ();
+		if (con != null) {
+			if (out != null) {
+				try {
+					out.close();
 					out = null;
-				}
-				catch (IOException e)
-				{
+				} catch (IOException e) {
 				}
 			}
-			if (in != null)
-			{
-				try
-				{
-					/*while(true){ //System.out.println("now read"); int
+			if (in != null) {
+				try {
+					/*
+					 * while(true){ //System.out.println("now read"); int
 					 * c=in.read(); //System.out.println("c="+c);
-					 * if(c==-1)break; } */
-					in.close ();
+					 * if(c==-1)break; }
+					 */
+					in.close();
 					in = null;
-				}
-				catch (IOException e)
-				{
+				} catch (IOException e) {
 				}
 			}
-			con.disconnect ();
+			con.disconnect();
 			con = null;
 			// try{Thread.sleep(500);}catch(Exception e){}
 		}

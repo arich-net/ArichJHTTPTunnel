@@ -31,8 +31,7 @@ package com.arichnet.jhttptunnel;
 
 import java.io.*;
 
-abstract class OutBound extends Bound
-{
+abstract class OutBound extends Bound {
 	static final private int CONTENT_LENGTH = 1024;
 	private int content_length = CONTENT_LENGTH;
 	int sendCount;
@@ -45,6 +44,5 @@ abstract class OutBound extends Bound
 		return content_length;
 	}
 
-	abstract void sendData (byte[] foo, int s, int l, boolean flush)
-			throws IOException;
+	abstract void sendData(byte[] foo, int s, int l, boolean flush) throws IOException;
 }
