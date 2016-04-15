@@ -250,12 +250,14 @@ class JHttpServerConnection {
 							keep_request = false;
 							System.out.println(
 									"Thread: " + Thread.currentThread().getName() + " | Disconnecting the tunnel!! ");
+							forward_client.message();
 						} else if (controlbyte == JHttpTunnel.TUNNEL_CLOSE) {
 							System.out.println(
 									"Thread: " + Thread.currentThread().getName() + " | Closing the tunnel!! ");
 							forward_client.sendCLOSE();
 							tunnel_opened = false;
 							closeForwardClient(forward_client);
+							forward_client.message();
 							// forward_client.close();
 						}
 					}
@@ -296,7 +298,7 @@ class JHttpServerConnection {
 		int getTraffic = 0;
 		boolean keep_request = true;
 		int position;
-		int correction = 4;
+		int correction = 0;
 
 		try {
 			System.out.println("Thread: " + Thread.currentThread().getName() + " | Starting GET processing: "
@@ -312,28 +314,30 @@ class JHttpServerConnection {
 				// forward_client.getBufferInPosition());
 
 				if (forward_client.getBufferInPosition() > 0) {
-					if ((forward_client.getBufferInPosition() + getTraffic) > JHttpTunnel.CONTENT_LENGTH) {
-						position = JHttpTunnel.CONTENT_LENGTH - getTraffic;
+					if ((forward_client.getBufferInPosition() + getTraffic + 3) > JHttpTunnel.CONTENT_LENGTH) {
+						position = JHttpTunnel.CONTENT_LENGTH - getTraffic - 3;
 						keep_request = false;
-						/**
-						 * System.out.println("Thread: " +
-						 * Thread.currentThread().getName() +
-						 * " | Fclient Position: " +
-						 * forward_client.getBufferInPosition() +
-						 * " | Actual Position: " + position +
-						 * " | Actual Traffic: " + getTraffic);
-						 */
+						
+						System.out.println("Thread: " +	Thread.currentThread().getName() +
+						        " | Fclient Position: " + forward_client.getBufferInPosition() +
+						        " | Actual Position: " + position + " | Actual Traffic: " + getTraffic);
+						
 					} else {
 						position = forward_client.getBufferInPosition();
+						System.out.println("Thread: " +	Thread.currentThread().getName() +
+						        " | TOTAL Fclient Position: " + forward_client.getBufferInPosition() +
+						        " | TOTAL Actual Position: " + position + " | Actual Traffic: " + getTraffic);
 					}
 
 					byte[] tmp = forward_client.readInputBuffer(position);
 
+					/**
 					if ((position == 1)
 							&& ((tmp[0] == JHttpTunnel.TUNNEL_PAD1) || (tmp[0] == JHttpTunnel.TUNNEL_CLOSE))) {
 						socket.write(tmp, 0, 1);
 						getTraffic++;
 					} else {
+					*/
 						buff[0] = JHttpTunnel.TUNNEL_DATA;
 						socket.write(buff, 0, 1);
 						getTraffic++;
@@ -342,7 +346,12 @@ class JHttpServerConnection {
 						getTraffic += 2;
 						socket.write(tmp, 0, tmp.length);
 						getTraffic += tmp.length;
-					}
+					//}
+				}
+				if (forward_client.getCONTROL()[0] != 0) {
+					socket.write(forward_client.getCONTROL(), 0, 1);
+					forward_client.zeroCONTROL();
+					getTraffic++;
 				}
 
 				if (!keep_request) {

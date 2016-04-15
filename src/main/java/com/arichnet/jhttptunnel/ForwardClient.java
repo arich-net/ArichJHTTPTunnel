@@ -14,8 +14,10 @@ public class ForwardClient implements Runnable {
 	ByteBuffer buffer_in = ByteBuffer.allocateDirect(10240);
 	ByteBuffer buffer_out = ByteBuffer.allocateDirect(1024);
 	byte[] _rn = "\r\n".getBytes();
+	byte[] control = new byte[1];
 	boolean GETlocked = false;
 	boolean POSTlocked = false;
+	boolean buffer_in_locked = false;
 	// ByteArrayInputStream buffer_in = new ByteArrayInputStream(new
 	// byte[1024]);
 	// ByteArrayOutputStream buffer_out = new ByteArrayOutputStream();
@@ -24,17 +26,23 @@ public class ForwardClient implements Runnable {
 		forward_host = fhost;
 		forward_port = fport;
 		session_id = sid;
+		control[0] = 0;
+		buffer_in_locked = false;
 	}
 
 	public ForwardClient() {
 		forward_host = "127.0.0.1";
 		forward_port = 22;
+		session_id = "123456";
+		control[0] = 0;
+		buffer_in_locked = false;
 	}
 
 	public void setForwardClientData(String h, int p, String s) {
 		forward_host = h;
 		forward_port = p;
 		session_id = s;
+		control[0] = 0;
 	}
 
 	@Override
@@ -59,10 +67,24 @@ public class ForwardClient implements Runnable {
 				if (forward_in.available() > 0) {
 					data_size = forward_in.available();
 					do {
-						if (getBufferInPosition() == 0) {
+						if ((!buffer_in_locked) && (getBufferInPosition() == 0)) {
+							System.out.println("Thread: " +	Thread.currentThread().getName() +
+							        " | ForwardIN available: " + forward_in.available() +
+							        " | Buffer Position: " + getBufferInPosition());
 							if (data_size >= 10240) {
-								forward_in.read(data_to_receive, 0, 10239);
-								buffer_in.put(data_to_receive, 0, 10239);
+								forward_in.read(data_to_receive, 0, 10240);
+								try {
+								   buffer_in.put(data_to_receive, 0, 10240);
+								}
+								catch (BufferOverflowException e) {
+									System.out.println("ERROR OF OVERRFLOW DETECTED");									
+									System.out.println("Data to insert: 10240");									
+									System.out.println("Actual Position: " + buffer_in.position());				
+									StringWriter errors = new StringWriter();
+									e.printStackTrace(new PrintWriter(errors));
+									System.out.println("Thread: " + Thread.currentThread().getName() + 
+											           " | ForwardClient error: " + errors.toString());
+								}
 								data_size -= 10240;
 							} else {
 								forward_in.read(data_to_receive, 0, data_size);
@@ -102,9 +124,11 @@ public class ForwardClient implements Runnable {
 	public byte[] readInputBuffer(int position) {
 		byte[] return_data = null;
 		byte[] tmp = null;
+		// Lock buffer to avoid overwritte
+		buffer_in_locked = true;
 
 		int currentPosition = buffer_in.position();
-		if ((position < currentPosition) && (position > 0)) {
+		if (position < currentPosition) {
 			return_data = new byte[position];
 			buffer_in.rewind();
 			buffer_in.get(return_data, 0, position);
@@ -112,15 +136,17 @@ public class ForwardClient implements Runnable {
 			buffer_in.get(tmp);
 			buffer_in.rewind();
 			buffer_in.put(tmp);
-		} else if ((position == currentPosition) && (currentPosition > 0)) {
+		} else if (position == currentPosition) {
 			return_data = new byte[currentPosition];
 			buffer_in.rewind();
 			try {
-				buffer_in.get(return_data, 0, currentPosition);
+				buffer_in.get(return_data);
 			}
 			catch (BufferUnderflowException e) {
 				System.out.println("ERROR OF UNDERFLOW DETECTED");
+				System.out.println("Requested Pointer: " + position);
 				System.out.println("Pointer: " + currentPosition);
+				System.out.println("Actual Position: " + buffer_in.position());				
 				StringWriter errors = new StringWriter();
 				e.printStackTrace(new PrintWriter(errors));
 				System.out.println("Thread: " + Thread.currentThread().getName() + 
@@ -128,7 +154,8 @@ public class ForwardClient implements Runnable {
 			}
 			buffer_in.rewind();
 		}
-
+		
+		buffer_in_locked = false;
 		return return_data;
 	}
 
@@ -156,11 +183,21 @@ public class ForwardClient implements Runnable {
 	}
 
 	public void sendPAD1() {
-		buffer_in.put(JHttpTunnel.TUNNEL_PAD1);
+		//buffer_in.put(JHttpTunnel.TUNNEL_PAD1);
+		control[0] = JHttpTunnel.TUNNEL_PAD1;
 	}
 
 	public void sendCLOSE() {
-		buffer_in.put(JHttpTunnel.TUNNEL_CLOSE);
+		//buffer_in.put(JHttpTunnel.TUNNEL_CLOSE);
+		control[0] = JHttpTunnel.TUNNEL_CLOSE;
+	}
+	
+	public void zeroCONTROL() {
+		control[0] = 0;
+	}
+	
+	public byte[] getCONTROL() {
+		return control;
 	}
 
 	public boolean isClosed() {
