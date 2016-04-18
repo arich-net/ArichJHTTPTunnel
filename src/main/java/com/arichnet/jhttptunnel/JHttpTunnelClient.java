@@ -31,6 +31,7 @@ package com.arichnet.jhttptunnel;
 
 import java.io.*;
 import java.lang.*;
+import java.net.*;
 
 public class JHttpTunnelClient {
 	// static final private int CONTENT_LENGTH=1024;
@@ -228,7 +229,7 @@ public class JHttpTunnelClient {
 				switch (request) {
 				case JHttpTunnel.TUNNEL_DATA:
 					buf_len = len;
-					// System.out.println("buf_len="+buf_len);
+					System.out.println("buf_len="+buf_len);
 					if (l < buf_len) {
 						len = l;
 					}
@@ -241,7 +242,7 @@ public class JHttpTunnelClient {
 						s += i;
 						len -= i;
 					}
-					// System.out.println("receiveData: "+(s-orgs));
+					System.out.println("receiveData: "+(s-orgs));
 					return s - orgs;
 				case JHttpTunnel.TUNNEL_PADDING:
 					ib.receiveData(null, 0, len);
@@ -259,7 +260,8 @@ public class JHttpTunnelClient {
 					// System.out.println("CLOSE");
 					break;
 				case JHttpTunnel.TUNNEL_DISCONNECT:
-					// System.out.println("DISCONNECT");
+					System.out.println("DISCONNECT");
+					closed = true;
 					continue;
 				default:
 					// System.out.println("request="+request);
@@ -357,55 +359,93 @@ public class JHttpTunnelClient {
 		this.ob = ob;
 	}
 
-	/*
-	 * public static void main(String[] arg){ try{
-	 *
-	 * if(arg.length==0){ System.err.println("Enter hostname[:port]");
-	 * System.exit(1); }
-	 *
-	 * String host=arg[0]; int hport=8888; if(host.indexOf(':')!=-1){
-	 * hport=Integer.parseInt(host.substring(host.lastIndexOf(':') + 1));
-	 * host=host.substring(0, host.lastIndexOf(':')); }
-	 *
-	 * int port=2323; String _port=System.getProperty("F"); if(_port!=null){
-	 * port=Integer.parseInt(_port); }
-	 *
-	 * String proxy_host=System.getProperty("P"); int proxy_port=8080;
-	 * if(proxy_host!=null && proxy_host.indexOf(':')!=-1){
-	 * proxy_port=Integer.parseInt
-	 * (proxy_host.substring(proxy_host.lastIndexOf(':') + 1));
-	 * proxy_host=proxy_host.substring(0, proxy_host.lastIndexOf(':')); }
-	 *
-	 * ServerSocket ss=new ServerSocket(port); while(true){ final Socket
-	 * socket=ss.accept(); socket.setTcpNoDelay(true);
-	 *
-	 * //System.out.println("accept: "+socket);
-	 *
-	 * final InputStream sin=socket.getInputStream(); final OutputStream
-	 * sout=socket.getOutputStream();
-	 *
-	 * final JHttpTunnelClient jhtc=new JHttpTunnelClient(host, hport);
-	 * if(proxy_host!=null){ jhtc.setProxy(proxy_host, proxy_port); }
-	 *
-	 * // jhtc.setInBound(new InBoundURL()); // jhtc.setOutBound(new
-	 * OutBoundURL());
-	 *
-	 * jhtc.setInBound(new InBoundSocket()); jhtc.setOutBound(new
-	 * OutBoundSocket());
-	 *
-	 * jhtc.connect(); final InputStream jin=jhtc.getInputStream(); final
-	 * OutputStream jout=jhtc.getOutputStream();
-	 *
-	 * Runnable runnable=new Runnable(){ public void run(){ byte[] tmp=new
-	 * byte[1024]; try{ while(true){ int i=jin.read(tmp); if(i>0){
-	 * sout.write(tmp, 0, i); continue; } break; } } catch(Exception e){ } try{
-	 * sout.close(); sin.close(); socket.close(); jin.close(); jhtc.close(); }
-	 * catch(Exception e){ } } }; (new Thread(runnable)).start();
-	 *
-	 * byte[] tmp=new byte[1024]; try{ while(true){ int i=sin.read(tmp);
-	 * if(i>0){ jout.write(tmp, 0, i); continue; } break; } } catch(Exception
-	 * e){ } try{ socket.close(); jin.close(); jhtc.close(); } catch(Exception
-	 * e){ } } } catch(JHttpTunnelException e){ System.err.println(e); }
-	 * catch(IOException e){ System.err.println(e); } }
-	 */
+	public static void main(String[] args) {
+		try {
+			if (args.length == 0) {
+				System.err.println("Enter hostname[:port]");
+				System.exit(1);
+			}
+			String host = args[0];
+			int hport = 8888;
+			if (host.indexOf(':') != -1) {
+				hport = Integer.parseInt(host.substring(host.lastIndexOf(':') + 1));
+				host = host.substring(0, host.lastIndexOf(':'));
+			}
+			int lport = 2323;
+			String _lport = System.getProperty("lport");
+			if (_lport != null) {
+				lport = Integer.parseInt(_lport);
+			}
+			String proxy_host = System.getProperty("proxy");
+			int proxy_port = 8080;
+			if (proxy_host != null && proxy_host.indexOf(':') != -1) {
+				proxy_port = Integer.parseInt(proxy_host.substring(proxy_host.lastIndexOf(':') + 1));
+				proxy_host = proxy_host.substring(0, proxy_host.lastIndexOf(':'));
+			}
+			
+			System.out.println("Opening local port: " + lport);
+			ServerSocket ss = new ServerSocket(lport);
+			ss.setReuseAddress(true);
+			Socket socket = ss.accept();
+			socket.setTcpNoDelay(true);			
+
+			final InputStream sin = socket.getInputStream();
+			final OutputStream sout = socket.getOutputStream();
+
+			final JHttpTunnelClient jhtc = new JHttpTunnelClient(host, hport);
+			if (proxy_host != null) {
+				jhtc.setProxy(proxy_host, proxy_port);
+			}
+
+			jhtc.setInBound(new InBoundSocket());
+			jhtc.setOutBound(new OutBoundSocket());
+
+			jhtc.connect();
+
+			final InputStream jin = jhtc.getInputStream();
+			final OutputStream jout = jhtc.getOutputStream();
+
+			Runnable runnable = new Runnable() {
+				public void run() {
+					byte[] tmp = new byte[1024];
+					try {
+						while (true) {
+							int i = jin.read(tmp);
+							if (i > 0) {
+								sout.write(tmp, 0, i);
+								continue;
+							}
+							break;
+						}
+					} catch (Exception e) {
+					}
+					try {
+						sin.close();
+						jin.close();
+						jhtc.close();
+					} catch (Exception e) {
+					}
+				}
+			};
+			(new Thread(runnable)).start();
+			
+			byte[] tmp = new byte[1024];
+			try {
+				while (true) {
+					int i = sin.read(tmp);
+					System.out.println("i=" + i + " " + jout);
+					if (i > 0) {
+						jout.write(tmp, 0, i);
+						continue;
+					}
+					break;
+				}
+			} catch (Exception e) {
+			}
+		} catch (Exception e) {
+			StringWriter errors = new StringWriter();
+			e.printStackTrace(new PrintWriter(errors));
+			System.err.println("JHttpClient error: " + errors.toString());			
+		}
+	}
 }

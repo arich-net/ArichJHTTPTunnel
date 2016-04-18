@@ -12,12 +12,13 @@ public class ForwardClient implements Runnable {
 	InputStream forward_in = null;
 	OutputStream forward_out = null;
 	ByteBuffer buffer_in = ByteBuffer.allocateDirect(10240);
-	ByteBuffer buffer_out = ByteBuffer.allocateDirect(1024);
+	ByteBuffer buffer_out = ByteBuffer.allocateDirect(10240);
 	byte[] _rn = "\r\n".getBytes();
 	byte[] control = new byte[1];
 	boolean GETlocked = false;
 	boolean POSTlocked = false;
 	boolean buffer_in_locked = false;
+	boolean buffer_out_locked = false;
 	// ByteArrayInputStream buffer_in = new ByteArrayInputStream(new
 	// byte[1024]);
 	// ByteArrayOutputStream buffer_out = new ByteArrayOutputStream();
@@ -51,8 +52,8 @@ public class ForwardClient implements Runnable {
 			System.out.println("Thread: " + Thread.currentThread().getName() + "¡¡¡¡¡ Starting forward client: "
 					+ this.toString());
 			// Connect to forward server
-			byte[] data_to_send = new byte[1024];
-			byte[] data_to_receive = new byte[10240];
+			byte[] data_to_send = null;
+			byte[] data_to_receive = null;
 			int data_size = 0;
 
 			forward_socket = new Socket(forward_host, forward_port);
@@ -65,49 +66,29 @@ public class ForwardClient implements Runnable {
 
 			while (forward_socket.isConnected()) {
 				if (forward_in.available() > 0) {
-					data_size = forward_in.available();
-					do {
-						if ((!buffer_in_locked) && (getBufferInPosition() == 0)) {
-							System.out.println("Thread: " +	Thread.currentThread().getName() +
-							        " | ForwardIN available: " + forward_in.available() +
-							        " | Buffer Position: " + getBufferInPosition());
-							if (data_size >= 10240) {
-								forward_in.read(data_to_receive, 0, 10240);
-								try {
-								   buffer_in.put(data_to_receive, 0, 10240);
-								}
-								catch (BufferOverflowException e) {
-									System.out.println("ERROR OF OVERRFLOW DETECTED");									
-									System.out.println("Data to insert: 10240");									
-									System.out.println("Actual Position: " + buffer_in.position());				
-									StringWriter errors = new StringWriter();
-									e.printStackTrace(new PrintWriter(errors));
-									System.out.println("Thread: " + Thread.currentThread().getName() + 
-											           " | ForwardClient error: " + errors.toString());
-								}
-								data_size -= 10240;
-							} else {
-								forward_in.read(data_to_receive, 0, data_size);
-								buffer_in.put(data_to_receive, 0, data_size);
-								// buffer_out.put(_rn, 0, 2);
-								data_size = 0;
-								// buffer_in.put(_rn, 0, 2);
-							}
+					if ((!buffer_in_locked) && (getBufferInPosition() == 0)) {
+						System.out.println("Thread: " + Thread.currentThread().getName() + " | ForwardIN available: "
+								+ forward_in.available());
+						if (forward_in.available() >= 10240) {
+							data_to_receive = new byte[10240];
+							forward_in.read(data_to_receive, 0, 10240);
+							buffer_in.put(data_to_receive, 0, 10240);
+						} else {
+							data_to_receive = new byte[forward_in.available()];
+							forward_in.read(data_to_receive);
+							buffer_in.put(data_to_receive);
 						}
-						Thread.currentThread().sleep((long) 1);
-					} while (data_size > 0);
-
+					}
 				}
-				if (buffer_out.position() > 0) {
+				if ((!buffer_out_locked) && (buffer_out.position() > 0)) {
+					buffer_out_locked = true;
 					data_size = buffer_out.position();
 					buffer_out.position(0);
+					data_to_send = new byte[data_size];
 					buffer_out.get(data_to_send, 0, data_size);
-
-					// System.out.println("Thread: " +
-					// Thread.currentThread().getName() +
-					// " | **** SENDING DATA SIZE: " + data_size);
 					forward_out.write(data_to_send, 0, data_size);
 					buffer_out.rewind();
+					buffer_out_locked = false;
 				}
 				Thread.currentThread().sleep((long) 1);
 			}
@@ -141,20 +122,19 @@ public class ForwardClient implements Runnable {
 			buffer_in.rewind();
 			try {
 				buffer_in.get(return_data);
-			}
-			catch (BufferUnderflowException e) {
+			} catch (BufferUnderflowException e) {
 				System.out.println("ERROR OF UNDERFLOW DETECTED");
 				System.out.println("Requested Pointer: " + position);
 				System.out.println("Pointer: " + currentPosition);
-				System.out.println("Actual Position: " + buffer_in.position());				
+				System.out.println("Actual Position: " + buffer_in.position());
 				StringWriter errors = new StringWriter();
 				e.printStackTrace(new PrintWriter(errors));
-				System.out.println("Thread: " + Thread.currentThread().getName() + 
-						           " | ForwardClient error: " + errors.toString());
+				System.out.println(
+						"Thread: " + Thread.currentThread().getName() + " | ForwardClient error: " + errors.toString());
 			}
 			buffer_in.rewind();
 		}
-		
+
 		buffer_in_locked = false;
 		return return_data;
 	}
@@ -177,25 +157,33 @@ public class ForwardClient implements Runnable {
 
 	public void writeOutputBuffer(byte[] bytes_data) {
 		// System.out.println("Buffer status: " + buffer_out.position());
-		buffer_out.put(bytes_data, 0, bytes_data.length - 1);
+		buffer_out.put(bytes_data, 0, bytes_data.length);
 		System.out.println(
 				"Thread: " + Thread.currentThread().getName() + " | *** Byte Output Stream Size: " + bytes_data.length);
 	}
+	
+	public void lockOutputBuffer() {
+		buffer_out_locked = true;
+	}
+	
+	public void unlockOutputBuffer() {
+		buffer_out_locked = false;
+	}
 
 	public void sendPAD1() {
-		//buffer_in.put(JHttpTunnel.TUNNEL_PAD1);
+		// buffer_in.put(JHttpTunnel.TUNNEL_PAD1);
 		control[0] = JHttpTunnel.TUNNEL_PAD1;
 	}
 
 	public void sendCLOSE() {
-		//buffer_in.put(JHttpTunnel.TUNNEL_CLOSE);
+		// buffer_in.put(JHttpTunnel.TUNNEL_CLOSE);
 		control[0] = JHttpTunnel.TUNNEL_CLOSE;
 	}
-	
+
 	public void zeroCONTROL() {
 		control[0] = 0;
 	}
-	
+
 	public byte[] getCONTROL() {
 		return control;
 	}
@@ -210,7 +198,6 @@ public class ForwardClient implements Runnable {
 	public void close() {
 		try {
 			while (!forward_socket.isClosed()) {
-				System.out.println("******+++ CLOSING FORWARD COMM ++++*******");
 				forward_socket.close();
 			}
 			while (!Thread.currentThread().interrupted()) {
@@ -223,22 +210,22 @@ public class ForwardClient implements Runnable {
 					"Thread: " + Thread.currentThread().getName() + " | ForwardClient error: " + errors.toString());
 		}
 	}
-	
+
 	public boolean getGETlocked() {
 		return GETlocked;
 	}
-	
+
 	public boolean getPOSTlocked() {
 		return POSTlocked;
 	}
-	
+
 	public void setGETlocked(boolean flag) {
 		GETlocked = flag;
 	}
-	
+
 	public void setPOSTlocked(boolean flag) {
 		POSTlocked = flag;
-	}	
+	}
 
 	public void message() {
 		System.out.println("Thread: " + Thread.currentThread().getName() + " | ForwardClient MESSAGE request, "

@@ -192,7 +192,7 @@ class JHttpServerConnection {
 	private void processPOST(MySocket socket, Hashtable<String, String> http_headers,
 			Hashtable<String, String> http_arguments, ForwardClient forward_client, boolean tunnel_already_opened) {
 
-		byte[] buff = new byte[1024];
+		byte[] buff = new byte[10240];
 		try {
 			System.out.println("Thread: " + Thread.currentThread().getName() + " | Starting POST processing: "
 					+ forward_client.toString());
@@ -208,6 +208,7 @@ class JHttpServerConnection {
 				if (tunnel_opened) {
 
 					if (socket.available() > 0) {
+						// Get the first control byte
 						temp = socket.read(buff, 0, 1);
 						postTraffic++;
 						controlbyte = buff[0];
@@ -216,31 +217,31 @@ class JHttpServerConnection {
 							temp = socket.read(buff, 0, 2);
 							postTraffic += 2;
 							data_length = ((buff[0] & 0xFF) << 8) + (buff[1] & 0xFF);
-							System.out.println("Thread: " + Thread.currentThread().getName() + " | POST Data Length: "
-									+ data_length);
 							// Check if the size is higher than the limit
 							// Stop get or post after processing this data
 							if ((data_length + postTraffic) > JHttpTunnel.CONTENT_LENGTH)
 								keep_request = false;
 
-							System.out.println("Thread: " + Thread.currentThread().getName() + " | POST Data Traffic: "
-									+ postTraffic + " | BREAK Flag: " + keep_request);
+							System.out.println("Thread: " + Thread.currentThread().getName() + 
+									           " | POST Data Traffic: "	+ postTraffic +
+									           " | POST Data Length: "	+ data_length +
+									           " | BREAK Flag: " + keep_request);
 
 							do {
 								if (forward_client.getBufferOutPosition() == 0) {
-									if (data_length > 1024) {
-										temp = socket.read(buff, 0, 1023);
-										postTraffic += 1023;
+									forward_client.lockOutputBuffer();
+									if (data_length > 10240) {
+										socket.read(buff, 0, 10240);
+										postTraffic += 10240;
 										forward_client.writeOutputBuffer(buff);
-										data_length -= 1023;
+										data_length -= 10240;
 									} else {
 										temp = socket.read(buff, 0, data_length);
 										postTraffic += data_length;
-										// forward_client.writeOutputBufferln(Arrays.copyOfRange(buff,
-										// 0, data_length));
-										forward_client.writeOutputBuffer(Arrays.copyOfRange(buff, 0, data_length + 1));
+										forward_client.writeOutputBuffer(Arrays.copyOfRange(buff, 0, data_length));
 										data_length = 0;
 									}
+									forward_client.unlockOutputBuffer();
 								}
 								Thread.currentThread().sleep((long) 1);
 							} while (data_length > 0);
@@ -308,13 +309,9 @@ class JHttpServerConnection {
 			getTraffic = correction;
 
 			do {
-				// System.out.println("Thread: " +
-				// Thread.currentThread().getName() +
-				// " | GET Waiting for data buffer pos: " +
-				// forward_client.getBufferInPosition());
 
 				if (forward_client.getBufferInPosition() > 0) {
-					if ((forward_client.getBufferInPosition() + getTraffic + 3) > JHttpTunnel.CONTENT_LENGTH) {
+					if ((forward_client.getBufferInPosition() + getTraffic + 3) > (JHttpTunnel.CONTENT_LENGTH -3)) {
 						position = JHttpTunnel.CONTENT_LENGTH - getTraffic - 3;
 						keep_request = false;
 						
@@ -331,22 +328,15 @@ class JHttpServerConnection {
 
 					byte[] tmp = forward_client.readInputBuffer(position);
 
-					/**
-					if ((position == 1)
-							&& ((tmp[0] == JHttpTunnel.TUNNEL_PAD1) || (tmp[0] == JHttpTunnel.TUNNEL_CLOSE))) {
-						socket.write(tmp, 0, 1);
-						getTraffic++;
-					} else {
-					*/
-						buff[0] = JHttpTunnel.TUNNEL_DATA;
-						socket.write(buff, 0, 1);
-						getTraffic++;
-						data_length = getDataLength(tmp.length);
-						socket.write(data_length, 0, 2);
-						getTraffic += 2;
-						socket.write(tmp, 0, tmp.length);
-						getTraffic += tmp.length;
-					//}
+					buff[0] = JHttpTunnel.TUNNEL_DATA;
+					socket.write(buff, 0, 1);
+					getTraffic++;
+					data_length = getDataLength(tmp.length);
+					socket.write(data_length, 0, 2);
+					getTraffic += 2;
+					socket.write(tmp, 0, tmp.length);
+					getTraffic += tmp.length;
+					
 				}
 				if (forward_client.getCONTROL()[0] != 0) {
 					socket.write(forward_client.getCONTROL(), 0, 1);
