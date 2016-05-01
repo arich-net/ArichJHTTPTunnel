@@ -212,8 +212,9 @@ class JHttpServerConnection {
 						temp = socket.read(buff, 0, 1);
 						postTraffic++;
 						controlbyte = buff[0];
-
-						if (controlbyte == JHttpTunnel.TUNNEL_DATA) {
+						
+						switch(controlbyte) {
+						case JHttpTunnel.TUNNEL_DATA:
 							temp = socket.read(buff, 0, 2);
 							postTraffic += 2;
 							data_length = ((buff[0] & 0xFF) << 8) + (buff[1] & 0xFF);
@@ -245,14 +246,17 @@ class JHttpServerConnection {
 								}
 								Thread.currentThread().sleep((long) 1);
 							} while (data_length > 0);
-						} else if (controlbyte == JHttpTunnel.TUNNEL_PAD1) {
+							continue;
+						case JHttpTunnel.TUNNEL_PAD1:						
 							forward_client.sendPAD1();
-						} else if (controlbyte == JHttpTunnel.TUNNEL_DISCONNECT) {
+							continue;
+						case JHttpTunnel.TUNNEL_DISCONNECT:
 							keep_request = false;
 							System.out.println(
 									"Thread: " + Thread.currentThread().getName() + " | Disconnecting the tunnel!! ");
 							forward_client.message();
-						} else if (controlbyte == JHttpTunnel.TUNNEL_CLOSE) {
+							continue;
+						case JHttpTunnel.TUNNEL_CLOSE:
 							System.out.println(
 									"Thread: " + Thread.currentThread().getName() + " | Closing the tunnel!! ");
 							forward_client.sendCLOSE();
@@ -260,8 +264,11 @@ class JHttpServerConnection {
 							closeForwardClient(forward_client);
 							forward_client.message();
 							// forward_client.close();
-						}
-					}
+							continue;						
+						}													
+					}					
+					if (((System.currentTimeMillis() / 1000) % JHttpTunnel.KEEP_ALIVE) == 0)
+						forward_client.sendPAD1();
 				} else {
 					temp = socket.read(buff, 0, 1);
 					postTraffic++;

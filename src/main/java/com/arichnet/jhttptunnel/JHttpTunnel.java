@@ -39,4 +39,6 @@ class JHttpTunnel {
 	static final byte TUNNEL_CLOSE = 6 | TUNNEL_SIMPLE;
 	static final byte TUNNEL_DISCONNECT = 7 | TUNNEL_SIMPLE;
 	static final int CONTENT_LENGTH = 102400;
+	static final int KEEP_ALIVE = 5; // Seconds
+	static final int MAX_CONNECTION_AGE = 300; // Seconds
 }

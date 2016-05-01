@@ -32,5 +32,5 @@ package com.arichnet.jhttptunnel;
 import java.io.*;
 
 abstract class InBound extends Bound {
-	abstract int receiveData(byte[] buf, int s, int l) throws IOException;
+	abstract int receiveData(byte[] buf, int s, int l) throws IOException;	
 }

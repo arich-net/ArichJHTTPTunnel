@@ -200,7 +200,7 @@ public class JHttpTunnelClient {
 		if (closed)
 			return -1;
 
-		try {
+		try { 
 			if (buf_len > 0) {
 				int len = buf_len;
 				if (l < buf_len) {
@@ -218,19 +218,19 @@ public class JHttpTunnelClient {
 					return -1;
 				}
 				int request = foo[s] & 0xff;
-				// System.out.println("request: "+request);
+				System.out.println("request: "+request);
 				if ((request & JHttpTunnel.TUNNEL_SIMPLE) == 0) {
 					i = ib.receiveData(foo, s, 1);
 					len = (((foo[s]) << 8) & 0xff00);
 					i = ib.receiveData(foo, s, 1);
 					len = len | (foo[s] & 0xff);
 				}
-				// System.out.println("request: "+request);
+				//System.out.println("request: "+request);
 				switch (request) {
 				case JHttpTunnel.TUNNEL_DATA:
 					buf_len = len;
 					System.out.println("buf_len="+buf_len);
-					if (l < buf_len) {
+					if (l < buf_len) {						
 						len = l;
 					}
 					int orgs = s;
@@ -253,6 +253,9 @@ public class JHttpTunnelClient {
 					// System.out.println(new String(error, 0, len));
 					throw new IOException("JHttpTunnel: " + new String(error, 0, len));
 				case JHttpTunnel.TUNNEL_PAD1:
+					byte[] pad = new byte[1];
+					pad[0] = JHttpTunnel.TUNNEL_PAD1;
+					ob.sendData(pad, 0, 1, true);
 					continue;
 				case JHttpTunnel.TUNNEL_CLOSE:
 					closed = true;
