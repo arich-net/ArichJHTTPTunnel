@@ -124,7 +124,7 @@ class JHttpServerConnection {
 				} catch (Exception e) {
 				}
 			}
-			
+
 			forward_client.setGETlocked(true);
 			processGET(mySocket, http_headers, http_arguments, forward_client);
 			break;
@@ -202,6 +202,7 @@ class JHttpServerConnection {
 			int data_length = 0;
 			boolean keep_request = true;
 			int postTraffic = 0;
+			Timer timer = new Timer();
 
 			do {
 
@@ -212,8 +213,8 @@ class JHttpServerConnection {
 						temp = socket.read(buff, 0, 1);
 						postTraffic++;
 						controlbyte = buff[0];
-						
-						switch(controlbyte) {
+
+						switch (controlbyte) {
 						case JHttpTunnel.TUNNEL_DATA:
 							temp = socket.read(buff, 0, 2);
 							postTraffic += 2;
@@ -223,10 +224,9 @@ class JHttpServerConnection {
 							if ((data_length + postTraffic) > JHttpTunnel.CONTENT_LENGTH)
 								keep_request = false;
 
-							System.out.println("Thread: " + Thread.currentThread().getName() + 
-									           " | POST Data Traffic: "	+ postTraffic +
-									           " | POST Data Length: "	+ data_length +
-									           " | BREAK Flag: " + keep_request);
+							System.out.println("Thread: " + Thread.currentThread().getName() + " | POST Data Traffic: "
+									+ postTraffic + " | POST Data Length: " + data_length + " | BREAK Flag: "
+									+ keep_request);
 
 							do {
 								if (forward_client.getBufferOutPosition() == 0) {
@@ -247,14 +247,17 @@ class JHttpServerConnection {
 								Thread.currentThread().sleep((long) 1);
 							} while (data_length > 0);
 							continue;
-						case JHttpTunnel.TUNNEL_PAD1:						
-							forward_client.sendPAD1();
+						case JHttpTunnel.TUNNEL_PAD1:
+							System.out.println(
+									"Thread: " + Thread.currentThread().getName() + " | Server PAD received");
+							//forward_client.sendPAD1();												
 							continue;
 						case JHttpTunnel.TUNNEL_DISCONNECT:
 							keep_request = false;
 							System.out.println(
 									"Thread: " + Thread.currentThread().getName() + " | Disconnecting the tunnel!! ");
 							forward_client.message();
+							timer.cancel();
 							continue;
 						case JHttpTunnel.TUNNEL_CLOSE:
 							System.out.println(
@@ -263,12 +266,12 @@ class JHttpServerConnection {
 							tunnel_opened = false;
 							closeForwardClient(forward_client);
 							forward_client.message();
+							timer.cancel();
 							// forward_client.close();
-							continue;						
-						}													
-					}					
-					if (((System.currentTimeMillis() / 1000) % JHttpTunnel.KEEP_ALIVE) == 0)
-						forward_client.sendPAD1();
+							continue;
+						}
+					}
+
 				} else {
 					temp = socket.read(buff, 0, 1);
 					postTraffic++;
@@ -279,6 +282,17 @@ class JHttpServerConnection {
 						postTraffic += 3;
 						tunnel_opened = true;
 						System.out.println("Thread: " + Thread.currentThread().getName() + " | Openning http tunnel");
+						// Starting Timer to send PADs
+						final ForwardClient fforward_client = forward_client;						
+						timer.scheduleAtFixedRate(new TimerTask() {
+							@Override
+							public void run() {
+								fforward_client.sendPAD1();
+								System.out.println(
+										"Thread: " + Thread.currentThread().getName() + " | Server PAD sent");								
+							}
+						}, JHttpTunnel.KEEP_ALIVE * 1000, JHttpTunnel.KEEP_ALIVE * 1000);
+						// timer.schedule(forward_client.sendPAD1(), 5000);
 					}
 				}
 
@@ -318,19 +332,19 @@ class JHttpServerConnection {
 			do {
 
 				if (forward_client.getBufferInPosition() > 0) {
-					if ((forward_client.getBufferInPosition() + getTraffic + 3) > (JHttpTunnel.CONTENT_LENGTH -3)) {
+					if ((forward_client.getBufferInPosition() + getTraffic + 3) > (JHttpTunnel.CONTENT_LENGTH - 3)) {
 						position = JHttpTunnel.CONTENT_LENGTH - getTraffic - 3;
 						keep_request = false;
-						
-						System.out.println("Thread: " +	Thread.currentThread().getName() +
-						        " | Fclient Position: " + forward_client.getBufferInPosition() +
-						        " | Actual Position: " + position + " | Actual Traffic: " + getTraffic);
-						
+
+						System.out.println("Thread: " + Thread.currentThread().getName() + " | Fclient Position: "
+								+ forward_client.getBufferInPosition() + " | Actual Position: " + position
+								+ " | Actual Traffic: " + getTraffic);
+
 					} else {
 						position = forward_client.getBufferInPosition();
-						System.out.println("Thread: " +	Thread.currentThread().getName() +
-						        " | TOTAL Fclient Position: " + forward_client.getBufferInPosition() +
-						        " | TOTAL Actual Position: " + position + " | Actual Traffic: " + getTraffic);
+						System.out.println("Thread: " + Thread.currentThread().getName() + " | TOTAL Fclient Position: "
+								+ forward_client.getBufferInPosition() + " | TOTAL Actual Position: " + position
+								+ " | Actual Traffic: " + getTraffic);
 					}
 
 					byte[] tmp = forward_client.readInputBuffer(position);
@@ -343,7 +357,7 @@ class JHttpServerConnection {
 					getTraffic += 2;
 					socket.write(tmp, 0, tmp.length);
 					getTraffic += tmp.length;
-					
+
 				}
 				if (forward_client.getCONTROL()[0] != 0) {
 					socket.write(forward_client.getCONTROL(), 0, 1);
@@ -362,7 +376,7 @@ class JHttpServerConnection {
 
 			} while (keep_request && (!forward_client.isClosed()));
 
-			System.out.println("Thread: " + Thread.currentThread().getName() + " | ABOUT TO CLOSE GET SOCKET... ");			
+			System.out.println("Thread: " + Thread.currentThread().getName() + " | ABOUT TO CLOSE GET SOCKET... ");
 			close(socket);
 			forward_client.setGETlocked(false);
 

@@ -32,6 +32,8 @@ package com.arichnet.jhttptunnel;
 import java.io.*;
 import java.lang.*;
 import java.net.*;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class JHttpTunnelClient {
 	// static final private int CONTENT_LENGTH=1024;
@@ -47,6 +49,8 @@ public class JHttpTunnelClient {
 
 	private InBound ib = null;
 	private OutBound ob = null;
+	
+	private Timer timer = new Timer();
 
 	// private int sendCount=CONTENT_LENGTH;
 
@@ -100,6 +104,19 @@ public class JHttpTunnelClient {
 		} catch (Exception e) {
 			throw new JHttpTunnelException(e.toString());
 		}
+		
+		final OutBound fob = ob;						
+		timer.scheduleAtFixedRate(new TimerTask() {
+			@Override
+			public void run(){
+				try {
+					sendPad1(true);
+					System.out.println(
+							"Thread: " + Thread.currentThread().getName() + " | Client PAD sent");
+				}
+				catch(IOException e) {}
+			}
+		}, JHttpTunnel.KEEP_ALIVE * 1000, JHttpTunnel.KEEP_ALIVE * 1000);
 	}
 
 	private void getOutbound() throws IOException {
@@ -253,9 +270,6 @@ public class JHttpTunnelClient {
 					// System.out.println(new String(error, 0, len));
 					throw new IOException("JHttpTunnel: " + new String(error, 0, len));
 				case JHttpTunnel.TUNNEL_PAD1:
-					byte[] pad = new byte[1];
-					pad[0] = JHttpTunnel.TUNNEL_PAD1;
-					ob.sendData(pad, 0, 1, true);
 					continue;
 				case JHttpTunnel.TUNNEL_CLOSE:
 					closed = true;
