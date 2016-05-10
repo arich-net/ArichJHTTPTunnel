@@ -219,13 +219,19 @@ public class JHttpTunnelClient {
 
 		try { 
 			if (buf_len > 0) {
+				//**********************************************				
+				
 				int len = buf_len;
-				if (l < buf_len) {
-					len = l;
-				}
+				len = (l < buf_len) ? l : buf_len;
+				//if (l < buf_len) {
+				//	len = l;
+				//}
 				int i = ib.receiveData(foo, s, len);
 				buf_len -= i;
+				System.out.println("¡¡buf_len="+buf_len);
 				return i;
+				
+				//**********************************************
 			}
 
 			int len = 0;
@@ -247,19 +253,29 @@ public class JHttpTunnelClient {
 				case JHttpTunnel.TUNNEL_DATA:
 					buf_len = len;
 					System.out.println("buf_len="+buf_len);
+					/**
 					if (l < buf_len) {						
 						len = l;
 					}
+					**/
 					int orgs = s;
 					while (len > 0) {
+						//*****************************************
+						len = (l < buf_len) ? l : buf_len;
+						System.out.println("** len="+len);						
 						i = ib.receiveData(foo, s, len);
-						if (i < 0)
-							break;
+						//if (i < 0)
+						//	break;
 						buf_len -= i;
 						s += i;
 						len -= i;
+						System.out.println("**** i="+i+"| buf_len="+buf_len);
+
+						
+						
+						//*****************************************
 					}
-					System.out.println("receiveData: "+(s-orgs));
+					System.out.println("Received Data: "+(s-orgs));
 					return s - orgs;
 				case JHttpTunnel.TUNNEL_PADDING:
 					ib.receiveData(null, 0, len);
@@ -277,7 +293,7 @@ public class JHttpTunnelClient {
 					// System.out.println("CLOSE");
 					break;
 				case JHttpTunnel.TUNNEL_DISCONNECT:
-					System.out.println("DISCONNECT");
+					System.out.println("DISCONNECT!!!!!!");
 					closed = true;
 					continue;
 				default:
