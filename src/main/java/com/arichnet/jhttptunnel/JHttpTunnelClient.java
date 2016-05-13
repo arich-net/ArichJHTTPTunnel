@@ -293,8 +293,12 @@ public class JHttpTunnelClient {
 					// System.out.println("CLOSE");
 					break;
 				case JHttpTunnel.TUNNEL_DISCONNECT:
-					System.out.println("DISCONNECT!!!!!!");
-					closed = true;
+					System.out.println("Received DISCONNECT!!!!!!... Trying to connect ib back");
+					//closed = true;
+					//ib.setHost(dest_host);
+                                        //ib.setPort(dest_port);
+                                        //ib.setProxy(proxy);
+                                        //ib.setSid(session_id);
 					continue;
 				default:
 					// System.out.println("request="+request);

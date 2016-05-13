@@ -3,6 +3,7 @@ package com.arichnet.jhttptunnel;
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.util.concurrent.*;
 
 class JHttpServerConnection {
 	private MySocket mySocket = null;
@@ -102,6 +103,7 @@ class JHttpServerConnection {
 			}
 			forward_client.setPOSTlocked(true);
 			processPOST(mySocket, http_headers, http_arguments, forward_client, tunnel_already_opened);
+			forward_client.setPOSTlocked(false);
 			break;
 
 		case "get":
@@ -202,7 +204,7 @@ class JHttpServerConnection {
 			int data_length = 0;
 			boolean keep_request = true;
 			int postTraffic = 0;
-			Timer timer = new Timer();
+			ScheduledExecutorService scheduledPool = Executors.newScheduledThreadPool(4);
 
 			do {
 
@@ -246,19 +248,20 @@ class JHttpServerConnection {
 								}
 								Thread.currentThread().sleep((long) 1);
 							} while (data_length > 0);
-							continue;
+							break;
 						case JHttpTunnel.TUNNEL_PAD1:
 							System.out.println(
 									"Thread: " + Thread.currentThread().getName() + " | Server PAD received");
 							//forward_client.sendPAD1();												
-							continue;
+							break;
 						case JHttpTunnel.TUNNEL_DISCONNECT:
 							keep_request = false;
 							System.out.println(
 									"Thread: " + Thread.currentThread().getName() + " | Disconnecting the tunnel!! ");
 							forward_client.message();
-							timer.cancel();
-							continue;
+							//timer.cancel();
+							//scheduledPool.shutdown();
+							break;
 						case JHttpTunnel.TUNNEL_CLOSE:
 							System.out.println(
 									"Thread: " + Thread.currentThread().getName() + " | Closing the tunnel!! ");
@@ -266,9 +269,10 @@ class JHttpServerConnection {
 							tunnel_opened = false;
 							closeForwardClient(forward_client);
 							forward_client.message();
-							timer.cancel();
+							scheduledPool.shutdown();
+							//timer.cancel();
 							// forward_client.close();
-							continue;
+							break;
 						}
 					}
 
@@ -283,7 +287,19 @@ class JHttpServerConnection {
 						tunnel_opened = true;
 						System.out.println("Thread: " + Thread.currentThread().getName() + " | Openning http tunnel");
 						// Starting Timer to send PADs
-						final ForwardClient fforward_client = forward_client;						
+						//
+
+						final ForwardClient fforward_client = forward_client;
+                                                Runnable runnableSendPad = new Runnable() {
+							@Override
+							public void run() {
+								fforward_client.sendPAD1();
+								System.out.println(
+										"Thread: " + Thread.currentThread().getName() + " | Server PAD sent");
+							}
+                                                };
+						scheduledPool.scheduleAtFixedRate(runnableSendPad,5,5,TimeUnit.SECONDS);
+                                                /**	
 						timer.scheduleAtFixedRate(new TimerTask() {
 							@Override
 							public void run() {
@@ -292,6 +308,9 @@ class JHttpServerConnection {
 										"Thread: " + Thread.currentThread().getName() + " | Server PAD sent");								
 							}
 						}, JHttpTunnel.KEEP_ALIVE * 1000, JHttpTunnel.KEEP_ALIVE * 1000);
+                                                */
+
+
 						// timer.schedule(forward_client.sendPAD1(), 5000);
 					}
 				}
@@ -302,7 +321,6 @@ class JHttpServerConnection {
 			System.out.println("Thread: " + Thread.currentThread().getName() + " | ABOUT TO CLOSE POST SOCKET... ");
 
 			close(socket);
-			forward_client.setPOSTlocked(false);
 			// System.out.println("Exiting: ");
 
 		} catch (Exception e) {
