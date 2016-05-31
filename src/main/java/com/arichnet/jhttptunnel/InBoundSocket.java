@@ -65,11 +65,13 @@ public class InBoundSocket extends InBound {
 		out = socket.getOutputStream();
 		out.write(request.getBytes());
 		out.write(_rn);
-		// if(p==null){out.write(("Connection: keep-alive").getBytes());}
-		// else{out.write(("Proxy-Connection: keep-alive").getBytes());}
-		// out.write(_rn);
-		// out.write(("Host: "+host+":"+port).getBytes());
-		// out.write(_rn);
+		out.write(("Host: "+host+":"+port).getBytes());
+		out.write(_rn);
+		out.write(("Connection: close").getBytes());
+		out.write(_rn);
+		//if(p==null){out.write(("Connection: keep-alive").getBytes());}
+		//else{out.write(("Proxy-Connection: keep-alive").getBytes());}
+		out.write(_rn);		
 
 		out.write(_rn);
 		out.flush();
@@ -127,7 +129,8 @@ public class InBoundSocket extends InBound {
 				if (i > 0) {
 					return i;
 				}
-				// System.out.println("1$ i="+i+" close="+closed);
+				//System.out.println("1$ i="+i+" close="+closed);
+				//System.out.println("1$ i="+i+" connecting IB back again");
 				connect();
 			} catch (SocketException e) {
 				throw e;

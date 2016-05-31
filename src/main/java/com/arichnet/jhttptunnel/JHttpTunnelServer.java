@@ -42,6 +42,7 @@ public class JHttpTunnelServer extends Thread {
 	private String forward_host;
 	private int forward_port;
 	private Hashtable<String, ForwardClient> clientsTable;
+	private List<Integer> postRemotePorts = new ArrayList<Integer>(); 
 
 	JHttpTunnelServer(int port) {
 		super();
@@ -88,12 +89,13 @@ public class JHttpTunnelServer extends Thread {
 			final int _port = forward_port;
 			// final ForwardClient _forwardclient = forward_client;
 			final Hashtable<String, ForwardClient> _clientsTable = clientsTable;
+			final List<Integer> _postRemotePorts = postRemotePorts;
 
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
 					try {
-						(new JHttpServerConnection(_socket, _host, _port, _clientsTable)).newsocket();
+						(new JHttpServerConnection(_socket, _host, _port, _clientsTable, _postRemotePorts)).newsocket();
 					} catch (Exception e) {
 					}
 				}

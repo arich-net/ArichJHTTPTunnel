@@ -157,7 +157,7 @@ public class JHttpTunnelClient {
 	}
 
 	public void sendClose() throws IOException {
-		// System.out.println("sendClose: ");
+		System.out.println("Client sendClose: ");
 		command[0] = JHttpTunnel.TUNNEL_CLOSE;
 		ob.sendData(command, 0, 1, true);
 	}
@@ -214,6 +214,7 @@ public class JHttpTunnelClient {
 	int buf_len = 0;
 
 	public int read(byte[] foo, int s, int l) throws IOException {
+		System.out.printf("[%s] Read called: bytes=%d s=%d l=%d%n", Thread.currentThread().getName(), foo.length , s, l);
 		if (closed)
 			return -1;
 
@@ -259,17 +260,20 @@ public class JHttpTunnelClient {
 					}
 					**/
 					int orgs = s;
+					len = (l < buf_len) ? l : buf_len;
+					
+					
 					while (len > 0) {
 						//*****************************************
-						len = (l < buf_len) ? l : buf_len;
-						System.out.println("** len="+len);						
+						
+						
+						System.out.printf("[%s] To be read i=%d len=%d s=%d%n", Thread.currentThread().getName(), i, len, s);												
 						i = ib.receiveData(foo, s, len);
-						//if (i < 0)
-						//	break;
+						if (i < 0) break;
 						buf_len -= i;
 						s += i;
 						len -= i;
-						System.out.println("**** i="+i+"| buf_len="+buf_len);
+						System.out.printf("[%s] After read i=%d len=%d s=%d buf_len=%d%n", Thread.currentThread().getName(), i, len, s, buf_len);						
 
 						
 						
@@ -290,7 +294,7 @@ public class JHttpTunnelClient {
 				case JHttpTunnel.TUNNEL_CLOSE:
 					closed = true;
 					// close();
-					// System.out.println("CLOSE");
+					System.out.println("CLOSE RECEIVED");
 					break;
 				case JHttpTunnel.TUNNEL_DISCONNECT:
 					System.out.println("Received DISCONNECT!!!!!!... Trying to connect ib back");
@@ -310,7 +314,9 @@ public class JHttpTunnelClient {
 		} catch (IOException e) {
 			throw e;
 		} catch (Exception e) {
-			// System.out.println("JHttpTunnelClient.read: "+e);
+			StringWriter errors = new StringWriter();
+			e.printStackTrace(new PrintWriter(errors));
+			System.out.println("JHttpTunnelClient.read: "+ errors.toString());
 		}
 		return -1;
 	}

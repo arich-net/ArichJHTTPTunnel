@@ -2,6 +2,7 @@ package com.arichnet.jhttptunnel;
 
 import java.io.*;
 import java.net.*;
+import java.text.*;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -14,7 +15,9 @@ class JHttpServerConnection {
 	private final String defaultFile = "index.html";
 	private ForwardClient forward_client = null;
 	private Hashtable<String, ForwardClient> clientsTable = null;
+	private List<Integer> postRemotePorts = null;
 	private boolean tunnel_already_opened = false;
+	private DateFormat date_format = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
 
 	JHttpServerConnection(Socket s, String h, int p, ForwardClient f) throws IOException {
 		super();
@@ -32,6 +35,15 @@ class JHttpServerConnection {
 		clientsTable = T;
 	}
 
+	JHttpServerConnection(Socket s, String h, int p, Hashtable T, List<Integer> l) throws IOException {
+		super();
+		mySocket = new MySocket(s);
+		forward_host = h;
+		forward_port = p;
+		clientsTable = T;
+		postRemotePorts = l;
+	}
+
 	public void newsocket() {
 		String socket_readline = "";
 		String http_method = "";
@@ -40,11 +52,12 @@ class JHttpServerConnection {
 		Hashtable<String, String> http_headers = new Hashtable();
 		Hashtable<String, String> http_arguments = new Hashtable<String, String>();
 
-		System.out.println("Thread: " + Thread.currentThread().getName() + " | New TCP Connection started");
+		System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+				+ Thread.currentThread().getName() + " | New TCP Connection started");
 
 		socket_readline = mySocket.readLine();
-		System.out.println(
-				"Thread: " + Thread.currentThread().getName() + " | First line data received: " + socket_readline);
+		System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+				+ Thread.currentThread().getName() + " | First line data received: " + socket_readline);
 		temp = socket_readline.substring(socket_readline.indexOf("/"));
 		temp = temp.substring(0, temp.indexOf(" "));
 		if (temp.length() > 1)
@@ -61,16 +74,23 @@ class JHttpServerConnection {
 		// Thread.currentThread().setName("1234456");
 
 		http_method = socket_readline.substring(0, socket_readline.indexOf(" "));
-		System.out.println("Thread: " + Thread.currentThread().getName() + " | Method of this socket: " + http_method);
+		System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+				+ Thread.currentThread().getName() + " | Method of this socket: " + http_method);
 
 		http_headers = getHttpHeader(mySocket);
 
 		switch (http_method.toLowerCase()) {
 		case "post":
+			// Add the client remote port to the post Remote Ports list
+			Integer remote_port = new Integer(mySocket.getRemotePort());
+			postRemotePorts.add(remote_port);
+			System.out.println(
+					"[" + date_format.format(Calendar.getInstance().getTime()) + "] " + Thread.currentThread().getName()
+							+ " | Remote Ports List: " + Arrays.toString(postRemotePorts.toArray()));
 			// Get the session id client if it has been initiated
 			if (clientsTable.containsKey(session_id)) {
-				System.out.println(
-						"Thread: " + Thread.currentThread().getName() + " | Recovering client with sid: " + session_id);
+				System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+						+ Thread.currentThread().getName() + " | Recovering client with sid: " + session_id);
 				forward_client = (ForwardClient) clientsTable.get(session_id);
 				forward_client.message();
 				tunnel_already_opened = true;
@@ -81,7 +101,8 @@ class JHttpServerConnection {
 				client_thread.start();
 				// Saving forward_client on the hash
 				clientsTable.put(session_id, forward_client);
-				System.out.println("Thread: " + Thread.currentThread().getName() + " | Adding client to the table "
+				System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+						+ Thread.currentThread().getName() + " | Adding client to the table "
 						+ clientsTable.containsKey(session_id));
 				tunnel_already_opened = false;
 				// forward_client.message();
@@ -91,8 +112,8 @@ class JHttpServerConnection {
 			// session_id);
 			// Start the client with the Session ID specified
 
-			System.out.println(
-					"Thread: " + Thread.currentThread().getName() + " | POST called: " + forward_client.toString());
+			System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+					+ Thread.currentThread().getName() + " | POST called: " + forward_client.toString());
 
 			// Wait until POST is unlocked
 			while (forward_client.getPOSTlocked()) {
@@ -102,8 +123,10 @@ class JHttpServerConnection {
 				}
 			}
 			forward_client.setPOSTlocked(true);
-			processPOST(mySocket, http_headers, http_arguments, forward_client, tunnel_already_opened);
+			processPOST(mySocket, http_headers, http_arguments, forward_client, tunnel_already_opened, remote_port);
 			forward_client.setPOSTlocked(false);
+			postRemotePorts.remove(remote_port);
+
 			break;
 
 		case "get":
@@ -116,8 +139,8 @@ class JHttpServerConnection {
 			}
 
 			forward_client = (ForwardClient) clientsTable.get(session_id);
-			System.out.println(
-					"Thread: " + Thread.currentThread().getName() + " | GET called: " + forward_client.toString());
+			System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+					+ Thread.currentThread().getName() + " | GET called: " + forward_client.toString());
 
 			// Wait until GET is unlocked
 			while (forward_client.getGETlocked()) {
@@ -155,8 +178,8 @@ class JHttpServerConnection {
 			key = temp.substring(0, temp.indexOf(":"));
 			value = temp.substring(temp.indexOf(":") + 1).trim();
 			return_data.put(key, value);
-			System.out.println(
-					"Thread: " + Thread.currentThread().getName() + " | HEADERS (Key:Value) " + key + ":" + value);
+			System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+					+ Thread.currentThread().getName() + " | HEADERS (Key:Value) " + key + ":" + value);
 		}
 		return return_data;
 	}
@@ -180,8 +203,8 @@ class JHttpServerConnection {
 						URL = "";
 					}
 					return_value.put(key, value);
-					System.out.println("Thread: " + Thread.currentThread().getName() + " | ARGUMENTS (Key:Value) " + key
-							+ ":" + value);
+					System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+							+ Thread.currentThread().getName() + " | ARGUMENTS (Key:Value) " + key + ":" + value);
 				} while (URL.indexOf("&") != -1);
 			}
 		} catch (Exception e) {
@@ -192,25 +215,27 @@ class JHttpServerConnection {
 	}
 
 	private void processPOST(MySocket socket, Hashtable<String, String> http_headers,
-			Hashtable<String, String> http_arguments, ForwardClient forward_client, boolean tunnel_already_opened) {
+			Hashtable<String, String> http_arguments, ForwardClient forward_client, boolean tunnel_already_opened,
+			int remote_port) {
 
 		byte[] buff = new byte[10240];
 		try {
-			System.out.println("Thread: " + Thread.currentThread().getName() + " | Starting POST processing: "
-					+ forward_client.toString());
+			System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+					+ Thread.currentThread().getName() + " | Starting POST processing: " + forward_client.toString());
 			byte controlbyte = 0;
 			int temp = 0;
 			boolean tunnel_opened = tunnel_already_opened;
 			int data_length = 0;
 			boolean keep_request = true;
 			int postTraffic = 0;
+			// int delta = 3; // because is the minimum needed for data
 			ScheduledExecutorService scheduledPool = Executors.newScheduledThreadPool(4);
 
 			do {
 
 				if (tunnel_opened) {
 
-					if (socket.available() > 0) {
+					if ((!existLowerRemotePort(remote_port)) && (socket.available() > 0)) {
 						// Get the first control byte
 						temp = socket.read(buff, 0, 1);
 						postTraffic++;
@@ -223,16 +248,18 @@ class JHttpServerConnection {
 							data_length = ((buff[0] & 0xFF) << 8) + (buff[1] & 0xFF);
 							// Check if the size is higher than the limit
 							// Stop get or post after processing this data
-							if ((data_length + postTraffic) > JHttpTunnel.CONTENT_LENGTH)
+							if ((data_length + postTraffic) > JHttpTunnel.CONTENT_LENGTH) {
 								keep_request = false;
+								System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+										+ Thread.currentThread().getName() + " | BREAK Flag: " + keep_request);
+							}
 
-							System.out.println("Thread: " + Thread.currentThread().getName() + " | POST Data Traffic: "
-									+ postTraffic + " | POST Data Length: " + data_length + " | BREAK Flag: "
-									+ keep_request);
+							System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+									+ Thread.currentThread().getName() + " | POST Data Traffic: " + postTraffic
+									+ " | POST Data Length: " + data_length + " | BREAK Flag: " + keep_request);
 
 							do {
-								if (forward_client.getBufferOutPosition() == 0) {
-									forward_client.lockOutputBuffer();
+								if (forward_client.isBufferOutAvailable()) {
 									if (data_length > 10240) {
 										socket.read(buff, 0, 10240);
 										postTraffic += 10240;
@@ -241,36 +268,40 @@ class JHttpServerConnection {
 									} else {
 										temp = socket.read(buff, 0, data_length);
 										postTraffic += data_length;
+										System.out.println("[" + date_format.format(Calendar.getInstance().getTime())
+												+ "] " + Thread.currentThread().getName() + " | Buff size: "
+												+ buff.length + " | Data length: " + data_length);
 										forward_client.writeOutputBuffer(Arrays.copyOfRange(buff, 0, data_length));
 										data_length = 0;
 									}
 									forward_client.unlockOutputBuffer();
 								}
-								Thread.currentThread().sleep((long) 1);
 							} while (data_length > 0);
 							break;
+
 						case JHttpTunnel.TUNNEL_PAD1:
-							System.out.println(
-									"Thread: " + Thread.currentThread().getName() + " | Server PAD received");
-							//forward_client.sendPAD1();												
+							System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+									+ Thread.currentThread().getName() + " | Server PAD received");
 							break;
+
 						case JHttpTunnel.TUNNEL_DISCONNECT:
 							keep_request = false;
-							System.out.println(
-									"Thread: " + Thread.currentThread().getName() + " | Disconnecting the tunnel!! ");
+							System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+									+ Thread.currentThread().getName() + " | Disconnecting the tunnel!! ");
 							forward_client.message();
-							//timer.cancel();
-							//scheduledPool.shutdown();
+							// timer.cancel();
+							// scheduledPool.shutdown();
 							break;
+
 						case JHttpTunnel.TUNNEL_CLOSE:
-							System.out.println(
-									"Thread: " + Thread.currentThread().getName() + " | Closing the tunnel!! ");
-							forward_client.sendCLOSE();
+							System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+									+ Thread.currentThread().getName() + " | Closing the tunnel!! ");
+							forward_client.setCONTROL(JHttpTunnel.TUNNEL_CLOSE);
 							tunnel_opened = false;
 							closeForwardClient(forward_client);
 							forward_client.message();
 							scheduledPool.shutdown();
-							//timer.cancel();
+							// timer.cancel();
 							// forward_client.close();
 							break;
 						}
@@ -285,40 +316,29 @@ class JHttpServerConnection {
 						temp = socket.read(buff, 0, 3);
 						postTraffic += 3;
 						tunnel_opened = true;
-						System.out.println("Thread: " + Thread.currentThread().getName() + " | Openning http tunnel");
+						System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+								+ Thread.currentThread().getName() + " | Openning http tunnel");
 						// Starting Timer to send PADs
 						//
 
 						final ForwardClient fforward_client = forward_client;
-                                                Runnable runnableSendPad = new Runnable() {
+						Runnable runnableSendPad = new Runnable() {
 							@Override
 							public void run() {
-								fforward_client.sendPAD1();
-								System.out.println(
-										"Thread: " + Thread.currentThread().getName() + " | Server PAD sent");
+								fforward_client.setCONTROL(JHttpTunnel.TUNNEL_PAD1);
+								System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+										+ Thread.currentThread().getName() + " | Server PAD sent");
 							}
-                                                };
-						scheduledPool.scheduleAtFixedRate(runnableSendPad,5,5,TimeUnit.SECONDS);
-                                                /**	
-						timer.scheduleAtFixedRate(new TimerTask() {
-							@Override
-							public void run() {
-								fforward_client.sendPAD1();
-								System.out.println(
-										"Thread: " + Thread.currentThread().getName() + " | Server PAD sent");								
-							}
-						}, JHttpTunnel.KEEP_ALIVE * 1000, JHttpTunnel.KEEP_ALIVE * 1000);
-                                                */
-
-
-						// timer.schedule(forward_client.sendPAD1(), 5000);
+						};
+						scheduledPool.scheduleAtFixedRate(runnableSendPad, 5, 5, TimeUnit.SECONDS);
 					}
 				}
 
-				Thread.currentThread().sleep((long) 1);
+				Thread.currentThread().sleep((long) 10);
 			} while (keep_request && (!forward_client.isClosed()));
 
-			System.out.println("Thread: " + Thread.currentThread().getName() + " | ABOUT TO CLOSE POST SOCKET... ");
+			System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+					+ Thread.currentThread().getName() + " | ABOUT TO CLOSE POST SOCKET... ");
 
 			close(socket);
 			// System.out.println("Exiting: ");
@@ -326,8 +346,11 @@ class JHttpServerConnection {
 		} catch (Exception e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
-			System.out.println(
-					"Thread: " + Thread.currentThread().getName() + " | POST processing Errors: " + errors.toString());
+			System.out.println("++++++++++++++++++++++++++++++++++");
+			forward_client.message();
+			System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+					+ Thread.currentThread().getName() + " | POST processing Errors: " + errors.toString());
+			System.out.println("++++++++++++++++++++++++++++++++++");
 		}
 	}
 
@@ -341,28 +364,21 @@ class JHttpServerConnection {
 		int correction = 0;
 
 		try {
-			System.out.println("Thread: " + Thread.currentThread().getName() + " | Starting GET processing: "
-					+ forward_client.toString());
+			System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+					+ Thread.currentThread().getName() + " | Starting GET processing: " + forward_client.toString());
 
 			sendok(socket);
 			getTraffic = correction;
 
 			do {
 
-				if (forward_client.getBufferInPosition() > 0) {
+				if ((forward_client.getBufferInPosition() > 0) && !forward_client.getBufferInLocked()) {
 					if ((forward_client.getBufferInPosition() + getTraffic + 3) > (JHttpTunnel.CONTENT_LENGTH - 3)) {
 						position = JHttpTunnel.CONTENT_LENGTH - getTraffic - 3;
 						keep_request = false;
 
-						System.out.println("Thread: " + Thread.currentThread().getName() + " | Fclient Position: "
-								+ forward_client.getBufferInPosition() + " | Actual Position: " + position
-								+ " | Actual Traffic: " + getTraffic);
-
 					} else {
 						position = forward_client.getBufferInPosition();
-						System.out.println("Thread: " + Thread.currentThread().getName() + " | TOTAL Fclient Position: "
-								+ forward_client.getBufferInPosition() + " | TOTAL Actual Position: " + position
-								+ " | Actual Traffic: " + getTraffic);
 					}
 
 					byte[] tmp = forward_client.readInputBuffer(position);
@@ -376,33 +392,45 @@ class JHttpServerConnection {
 					socket.write(tmp, 0, tmp.length);
 					getTraffic += tmp.length;
 
-				}
-				if (forward_client.getCONTROL()[0] != 0) {
-					socket.write(forward_client.getCONTROL(), 0, 1);
-					forward_client.zeroCONTROL();
-					getTraffic++;
+					System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+							+ Thread.currentThread().getName() + " | GET Data Traffic: " + getTraffic + " | Length: "
+							+ tmp.length + " | BREAK Flag: " + keep_request);
+
 				}
 
+				if (forward_client.getCONTROL()[0] != 0) {
+					socket.write(forward_client.getCONTROL(), 0, 1);
+					forward_client.setCONTROL((byte) 0);
+					getTraffic++;
+				}
+				// Thread.currentThread().sleep((long) 1);
+
 				if (!keep_request) {
+					// Thread.currentThread().sleep((long) 1);
 					buff[0] = JHttpTunnel.TUNNEL_DISCONNECT;
 					socket.write(buff, 0, 1);
 					getTraffic++;
 				}
 
+				else {
+					// Thread.currentThread().sleep((long) 1);
+				}
+
 				// Do nothing
-				Thread.currentThread().sleep((long) 1);
+				Thread.currentThread().sleep((long) 10);
 
 			} while (keep_request && (!forward_client.isClosed()));
 
-			System.out.println("Thread: " + Thread.currentThread().getName() + " | ABOUT TO CLOSE GET SOCKET... ");
+			System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+					+ Thread.currentThread().getName() + " | ABOUT TO CLOSE GET SOCKET... ");
 			close(socket);
 			forward_client.setGETlocked(false);
 
 		} catch (Exception e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
-			System.out.println(
-					"Thread: " + Thread.currentThread().getName() + " | GET Processing Errors: " + errors.toString());
+			System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+					+ Thread.currentThread().getName() + " | GET Processing Errors: " + errors.toString());
 		}
 	}
 
@@ -422,7 +450,8 @@ class JHttpServerConnection {
 	}
 
 	private void sendok(MySocket socket) throws IOException {
-		System.out.println("Thread: " + Thread.currentThread().getName() + " | Sending GET OK");
+		System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+				+ Thread.currentThread().getName() + " | Sending GET OK");
 		socket.println("HTTP/1.1 200 OK");
 		socket.println("Content-Length: " + JHttpTunnel.CONTENT_LENGTH);
 		socket.println("Connection: close");
@@ -441,4 +470,14 @@ class JHttpServerConnection {
 		return_data[1] = (byte) lsb_int;
 		return return_data;
 	}
+
+	private boolean existLowerRemotePort(int remote_port) {
+		boolean return_value = false;
+		for (Integer port: postRemotePorts) {
+			if (port.intValue() < remote_port)
+				return_value = true;			
+		}		
+		return return_value;
+	}
 }
+

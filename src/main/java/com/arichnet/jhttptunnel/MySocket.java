@@ -159,5 +159,9 @@ public class MySocket {
 	public boolean isClosed() {
 		return socket.isClosed();
 	}
+	
+	public int getRemotePort() {
+		return socket.getPort();
+	}
 
 }
