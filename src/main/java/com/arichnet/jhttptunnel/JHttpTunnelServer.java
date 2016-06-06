@@ -42,6 +42,11 @@ public class JHttpTunnelServer extends Thread {
 	private String forward_host;
 	private int forward_port;
 	private Hashtable<String, ForwardClient> clientsTable;
+	
+	//NUEVO
+	private Hashtable<String, BoundServer> serverBound;
+	
+	
 	private List<Integer> postRemotePorts = new ArrayList<Integer>(); 
 
 	JHttpTunnelServer(int port) {

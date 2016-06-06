@@ -41,4 +41,5 @@ class JHttpTunnel {
 	static final int CONTENT_LENGTH = 102400;
 	static final int KEEP_ALIVE = 5; // Seconds
 	static final int MAX_CONNECTION_AGE = 300; // Seconds
+	static final int BUFFER_LENGTH = 1024 * 10;
 }
