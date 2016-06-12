@@ -21,7 +21,10 @@ public class ForwardClient implements Runnable {
 	boolean POSTlocked = false;
 	boolean buffer_in_locked = false;
 	boolean buffer_out_locked = false;
+	boolean tunnel_opened = false;
 	DateFormat date_format = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
+	private OutBoundServer out_server; 
+	
 	// ByteArrayInputStream buffer_in = new ByteArrayInputStream(new
 	// byte[1024]);
 	// ByteArrayOutputStream buffer_out = new ByteArrayOutputStream();
@@ -33,6 +36,15 @@ public class ForwardClient implements Runnable {
 		control[0] = 0;
 		buffer_in_locked = false;
 	}
+	
+	public ForwardClient(String fhost, int fport, String sid, OutBoundServer out) {
+		forward_host = fhost;
+		forward_port = fport;
+		session_id = sid;
+		control[0] = 0;
+		buffer_in_locked = false;
+		out_server = out;
+	}
 
 	public ForwardClient() {
 		forward_host = "127.0.0.1";
@@ -42,18 +54,20 @@ public class ForwardClient implements Runnable {
 		buffer_in_locked = false;
 	}
 
-	public void setForwardClientData(String h, int p, String s) {
+	public void setForwardClientData(String h, int p, String s, OutBoundServer out) {
 		forward_host = h;
 		forward_port = p;
 		session_id = s;
 		control[0] = 0;
+		out_server = out;
 	}
 
 	@Override
 	public void run() {
 		try {
 			System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-					+ Thread.currentThread().getName() + "¡¡¡¡¡ Starting forward client: " + this.toString());
+					           + Thread.currentThread().getName() + "¡¡¡¡¡ Starting forward client: " + 
+					           this.toString());
 			// Connect to forward server
 			byte[] data_to_send = null;
 			byte[] data_to_receive = null;
@@ -72,8 +86,8 @@ public class ForwardClient implements Runnable {
 					if ((!buffer_in_locked) && (getBufferInPosition() == 0)) {
 						buffer_in_locked = true;
 						System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-								+ Thread.currentThread().getName() + " | ForwardIN available: "
-								+ forward_in.available());
+								           + Thread.currentThread().getName() + " | ForwardIN available: "
+								           + forward_in.available());
 						if (forward_in.available() >= 10240) {
 							data_to_receive = new byte[10240];
 							forward_in.read(data_to_receive, 0, 10240);
@@ -88,6 +102,19 @@ public class ForwardClient implements Runnable {
 						buffer_in_locked = false;
 					}
 				}
+				// Read Data from OutBoundServer Buffer				
+				data_to_send = out_server.readData();
+				
+				if (data_to_send != null) {
+					forward_out.write(data_to_send);
+					System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+			                           + Thread.currentThread().getName() + " | Forwarding Data: "
+			                           + data_to_send.length);
+				}
+				
+				
+				
+				/**
 				if ((!buffer_out_locked) && (buffer_out.position() > 0)) {
 					buffer_out_locked = true;
 					data_size = buffer_out.position();
@@ -98,6 +125,7 @@ public class ForwardClient implements Runnable {
 					buffer_out.rewind();
 					buffer_out_locked = false;
 				}
+				*/
 				Thread.currentThread().sleep((long) 1);
 			}
 		} catch (IOException e) {
@@ -263,6 +291,14 @@ public class ForwardClient implements Runnable {
 
 	public void setPOSTlocked(boolean flag) {
 		POSTlocked = flag;
+	}
+	
+	public void setTunnelOpened(boolean flag){
+		tunnel_opened = flag;
+	}
+	
+	public boolean getTunnelOpened(){
+		return tunnel_opened;
 	}
 
 	public void message() {
