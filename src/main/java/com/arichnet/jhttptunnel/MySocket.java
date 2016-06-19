@@ -26,6 +26,8 @@ package com.arichnet.jhttptunnel;
 
 import java.io.*;
 import java.net.*;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class MySocket {
@@ -33,6 +35,7 @@ public class MySocket {
 	Socket socket = null;
 	private DataInputStream dataInputStream = null;
 	private OutputStream os = null;
+	private DateFormat date_format = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
 
 	MySocket(Socket s) throws IOException {
 		try {
@@ -83,9 +86,14 @@ public class MySocket {
 
 	/* Method is being deprecated it should be used BufferedReader instead */
 	public String readLine() {
-		try {
+		try {			
 			return (dataInputStream.readLine());
 		} catch (IOException e) {
+			StringWriter errors = new StringWriter();
+			e.printStackTrace(new PrintWriter(errors));			
+			System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+					           + "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + 
+					           "] MySocket ReadLine error" + errors.toString());
 			return (null);
 		}
 	}

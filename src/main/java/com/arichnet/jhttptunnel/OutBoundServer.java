@@ -22,13 +22,13 @@ public class OutBoundServer extends BoundServer{
 		// Get the remote port from the table
 		Integer remote_port = new Integer(remote_p);
 		ByteBuffer buf = (ByteBuffer) buffer_table.get(new Integer(remote_port));
-		int data_wrote;
+		int data_wrote;				
 		
-		if (buf == null) 
-			buf = ByteBuffer.allocateDirect(JHttpTunnel.BUFFER_LENGTH);
-		
-		if (buf.position() >= JHttpTunnel.BUFFER_LENGTH)
+		if ((buf == null) || (buf.position() >= JHttpTunnel.BUFFER_LENGTH)) {
+			System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] " + 
+	                           "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] Buffer OutBoundServer NULL or Exceed maximum");
 			return -1;
+		}
 		
 		if (buf.position() + data.length > JHttpTunnel.BUFFER_LENGTH) {
 			data_wrote = JHttpTunnel.BUFFER_LENGTH - buf.position();
@@ -38,10 +38,10 @@ public class OutBoundServer extends BoundServer{
 			data_wrote = data.length;
 			buf.put(data);
 		}		
-		
+		buffer_table.remove(remote_port);
 		buffer_table.put(remote_port, buf);
 		System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] " + 
-		                   Thread.currentThread().getName() + " | Buffer Data Stored:" + buf.position() +
+		                   "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] Buffer Data Stored:" + buf.position() +
 		                   " | TCP remote port:" + remote_p);
 		
 		return data_wrote;
@@ -53,14 +53,16 @@ public class OutBoundServer extends BoundServer{
 			return null;
 		Integer pivot = new Integer(65536);
 		Integer temp;
-		Enumeration remote_ports = buffer_table.keys();
+		Enumeration remote_ports = buffer_table.keys();		
 		while(remote_ports.hasMoreElements()){
 			temp = (Integer)remote_ports.nextElement();
+			/**
 			if (buffer_table.get(temp) != null) {
 			    System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] " + 
-	                   		       Thread.currentThread().getName() + " | Remote Port Found:" + temp +
+	                   		       "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] Remote Port Found:" + temp +
 	                   		       " | Buffer Position:" + ((ByteBuffer) buffer_table.get(temp)).position());
 			}
+			*/
 			if (temp < pivot)
 				pivot = temp;
 		}
@@ -71,13 +73,31 @@ public class OutBoundServer extends BoundServer{
 		byte[] return_value = new byte[pos];
 		buffer.rewind();
 		buffer.get(return_value);
-		buffer_table.remove(pivot);
+		buffer.rewind();
+		//buffer_table.remove(pivot);
 		return return_value;
 	}
 	
-	public boolean removePort(int remote_p) {
+	public synchronized boolean removePort(int remote_p) {
 		try {
 		   buffer_table.remove(new Integer(remote_p));
+		   System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] " + 
+	                          "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + 
+	                          "] Close remote port:" + remote_p);
+		   return true;
+		}
+		catch (Exception e){
+			return false;
+		}
+	}
+	
+	public synchronized boolean initPort(int remote_p) {
+		try {
+		   ByteBuffer buf = ByteBuffer.allocateDirect(JHttpTunnel.BUFFER_LENGTH);
+		   buffer_table.put(new Integer(remote_p), buf);
+		   System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] " + 
+       		                  "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + 
+       		                  "] Init remote port:" + remote_p);
 		   return true;
 		}
 		catch (Exception e){
@@ -94,5 +114,19 @@ public class OutBoundServer extends BoundServer{
 		catch (Exception e) {
 			return -1;
 		}
-	}	
+	}
+	
+	@Override
+	public String toString(){
+		StringBuilder ret_value = new StringBuilder();
+		Integer key;
+		ByteBuffer buf;
+		Enumeration remote_ports = buffer_table.keys();
+		while(remote_ports.hasMoreElements()){
+			key = (Integer)remote_ports.nextElement();
+			buf = (ByteBuffer) buffer_table.get(key);		
+			ret_value.append(" (" + key.toString() + "=>" + String.valueOf(buf.position()) + ")");			
+		}
+		return ret_value.toString();
+	}
 }

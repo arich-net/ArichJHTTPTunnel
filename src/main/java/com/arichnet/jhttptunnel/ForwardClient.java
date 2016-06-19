@@ -66,7 +66,7 @@ public class ForwardClient implements Runnable {
 	public void run() {
 		try {
 			System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-					           + Thread.currentThread().getName() + "¡¡¡¡¡ Starting forward client: " + 
+					           + "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] ¡¡¡¡¡ Starting forward client: " + 
 					           this.toString());
 			// Connect to forward server
 			byte[] data_to_send = null;
@@ -86,7 +86,7 @@ public class ForwardClient implements Runnable {
 					if ((!buffer_in_locked) && (getBufferInPosition() == 0)) {
 						buffer_in_locked = true;
 						System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-								           + Thread.currentThread().getName() + " | ForwardIN available: "
+								           + "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] ForwardIN available: "
 								           + forward_in.available());
 						if (forward_in.available() >= 10240) {
 							data_to_receive = new byte[10240];
@@ -96,7 +96,7 @@ public class ForwardClient implements Runnable {
 							data_to_receive = new byte[forward_in.available()];
 							forward_in.read(data_to_receive);
 							//System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-							//		+ Thread.currentThread().getName() + " | " + Arrays.toString(data_to_receive));
+							//		+ "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] " + Arrays.toString(data_to_receive));
 							buffer_in.put(data_to_receive);
 						}
 						buffer_in_locked = false;
@@ -108,7 +108,7 @@ public class ForwardClient implements Runnable {
 				if (data_to_send != null) {
 					forward_out.write(data_to_send);
 					System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-			                           + Thread.currentThread().getName() + " | Forwarding Data: "
+			                           + "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] Forwarding Data: "
 			                           + data_to_send.length);
 				}
 				
@@ -135,7 +135,7 @@ public class ForwardClient implements Runnable {
 			System.out.println("**********************************");
 			this.message();
 			System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-					+ Thread.currentThread().getName() + " | ForwardClient error: " + errors.toString());
+					+ "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] ForwardClient error: " + errors.toString());
 			System.out.println("**********************************");
 		}
 
@@ -170,7 +170,7 @@ public class ForwardClient implements Runnable {
 				StringWriter errors = new StringWriter();
 				e.printStackTrace(new PrintWriter(errors));
 				System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-						+ Thread.currentThread().getName() + " | ForwardClient error: " + errors.toString());
+						+ "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] ForwardClient error: " + errors.toString());
 			}
 			buffer_in.rewind();
 		}
@@ -205,18 +205,18 @@ public class ForwardClient implements Runnable {
 		// System.out.println("Buffer status: " + buffer_out.position());
 		buffer_out.put(bytes_data, 0, bytes_data.length);
 		System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-				+ Thread.currentThread().getName() + " | *** Byte Output Stream Size: " + bytes_data.length);
+				+ "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] *** Byte Output Stream Size: " + bytes_data.length);
 	}
 
 	public void lockOutputBuffer() {
 		System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-				+ Thread.currentThread().getName() + " | *** Locking Output Buffer ");
+				+ "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] *** Locking Output Buffer ");
 		buffer_out_locked = true;
 	}
 
 	public void unlockOutputBuffer() {
 		System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-				+ Thread.currentThread().getName() + " | *** Unlocking Output Buffer ");
+				+ "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] *** Unlocking Output Buffer ");
 		buffer_out_locked = false;
 	}
 
@@ -228,7 +228,7 @@ public class ForwardClient implements Runnable {
 		if ((!buffer_out_locked) && (buffer_out.position() == 0)) {
 			buffer_out_locked = true;
 			System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-					+ Thread.currentThread().getName() + " | *** Locking Output Buffer ");
+					+ "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] *** Locking Output Buffer ");
 			return true;
 		}
 		return false;
@@ -273,7 +273,7 @@ public class ForwardClient implements Runnable {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
 			System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-					+ Thread.currentThread().getName() + " | ForwardClient error: " + errors.toString());
+					+ "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] ForwardClient error: " + errors.toString());
 		}
 	}
 
@@ -303,7 +303,8 @@ public class ForwardClient implements Runnable {
 
 	public void message() {
 		System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-				+ Thread.currentThread().getName() + " | ForwardClient MESSAGE request, " + " Buffer IN, "
+				+ "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() 
+				+ "] ForwardClient MESSAGE request, " + " Buffer IN, "
 				+ buffer_in.toString() + ", " + " Buffer OUT: " + buffer_out.toString() + ", " + " Socket INFO: "
 				+ forward_socket.toString());
 	}

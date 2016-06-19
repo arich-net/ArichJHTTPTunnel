@@ -26,6 +26,8 @@ package com.arichnet.jhttptunnel;
 
 import java.io.*;
 import java.net.*;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class JHttpTunnelServer extends Thread {
@@ -45,6 +47,7 @@ public class JHttpTunnelServer extends Thread {
 	
 	//NUEVO
 	private Hashtable<String, BoundServer> outBoundServerTable;
+	private DateFormat date_format = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
 	
 	
 	private List<Integer> postRemotePorts = new ArrayList<Integer>(); 
@@ -105,6 +108,11 @@ public class JHttpTunnelServer extends Thread {
 						//(new JHttpServerConnection(_socket, _host, _port, _clientsTable, _postRemotePorts)).newsocket();
 						(new JHttpServerConnection(_socket, _host, _port, _clientsTable, _postRemotePorts, _outBoundServerTable)).newsocket();
 					} catch (Exception e) {
+						StringWriter errors = new StringWriter();
+						e.printStackTrace(new PrintWriter(errors));			
+						System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
+								           + "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + 
+								           "] JHttpServer Error:" + errors.toString());
 					}
 				}
 			}).start();
