@@ -31,15 +31,17 @@ package com.arichnet.jhttptunnel;
 
 import java.io.*;
 import java.net.*;
+import org.apache.log4j.Logger;
 
 public class InBoundConnector extends InBound {
+	private static final Logger log = Logger.getLogger(InBoundConnector.class);
 	private InputStream in = null;
 	private HttpURLConnection con = null;
 
 	@Override
 	public void connect() throws IOException {
 		close();
-		System.out.println("Calling connect from " + this.getClass().getName());
+		log.info("Calling connect from "+ this.getClass().getName());		
 		String host = getHost();
 		int port = getPort();
 		URL url = new URL("http://" + host + ":" + port + "/index.html?crap=1");
@@ -74,16 +76,17 @@ public class InBoundConnector extends InBound {
 			// throw e;
 			// }
 			catch (IOException e) {
-				// System.out.println("2$ "+e);
+				StringWriter errors = new StringWriter();
+				e.printStackTrace(new PrintWriter(errors));
+				log.error("InBoundConnector Error:" + errors.toString());
 				throw e;
-				// connect();
 			}
 		}
 	}
 
 	@Override
-	public void close() {
-		// System.out.println("InBound.close: ");
+	public void close() {	
+		log.info("InBound.close: " + this.getClass().getName());
 		if (con != null) {
 			if (in != null) {
 				try {

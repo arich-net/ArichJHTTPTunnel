@@ -34,8 +34,10 @@ import java.lang.*;
 import java.net.*;
 import java.util.Timer;
 import java.util.TimerTask;
+import org.apache.log4j.Logger;
 
 public class JHttpTunnelClient {
+	private static final Logger log = Logger.getLogger(JHttpTunnelClient.class);
 	// static final private int CONTENT_LENGTH=1024;
 	static final private int CONTENT_LENGTH = 1024 * 10;
 
@@ -111,8 +113,7 @@ public class JHttpTunnelClient {
 			public void run(){
 				try {
 					sendPad1(true);
-					System.out.println(
-							"Thread: " + Thread.currentThread().getName() + " | Client PAD sent");
+					log.debug("Client PAD sent");
 				}
 				catch(IOException e) {}
 			}
@@ -120,7 +121,7 @@ public class JHttpTunnelClient {
 	}
 
 	private void getOutbound() throws IOException {
-		// System.out.println("getOutbound()");
+		// log.debug("getOutbound()");
 		if (closed) {
 			throw new IOException("broken pipe");
 		}
@@ -139,9 +140,8 @@ public class JHttpTunnelClient {
 	private final byte[] command = new byte[4];
 
 	public void openChannel(int i) throws IOException {
-		// System.out.println("sendOpen: " + JHttpTunnel.TUNNEL_OPEN);
-		// System.out.println("Stack Trace: " +
-		// Thread.currentThread().getStackTrace()[2].getMethodName());
+		// log.debug("sendOpen: " + JHttpTunnel.TUNNEL_OPEN);
+		// log.debug("Stack Trace: " + Thread.currentThread().getStackTrace()[2].getMethodName());
 
 		command[0] = JHttpTunnel.TUNNEL_OPEN;
 		command[1] = 0;
@@ -151,13 +151,13 @@ public class JHttpTunnelClient {
 	}
 
 	public void sendDisconnect() throws IOException {
-		// System.out.println("sendDisconnect: "+sendCount);
+		// log.debug("sendDisconnect: "+sendCount);
 		command[0] = JHttpTunnel.TUNNEL_DISCONNECT;
 		ob.sendData(command, 0, 1, true);
 	}
 
 	public void sendClose() throws IOException {
-		System.out.println("Client sendClose: ");
+		log.debug("Client sendClose: ");
 		command[0] = JHttpTunnel.TUNNEL_CLOSE;
 		ob.sendData(command, 0, 1, true);
 	}
@@ -168,12 +168,12 @@ public class JHttpTunnelClient {
 	}
 
 	public void write(byte[] foo, int s, int l) throws IOException {
-		System.out.println("write: l=" + l + ", sendCount=" + ob.sendCount);
+		log.debug("write: length=" + l + ", ob.sendCount=" + ob.sendCount);
 		if (l <= 0)
 			return;
 
 		if (ob.sendCount <= 4) {
-			System.out.println("ob.sendCount<=4: " + ob.sendCount);
+			log.debug("ob.sendCount<=4: " + ob.sendCount);
 			if (0 < ob.sendCount) {
 				while (ob.sendCount > 1) {
 					sendPad1(false);
@@ -188,7 +188,7 @@ public class JHttpTunnelClient {
 			command[0] = JHttpTunnel.TUNNEL_DATA;
 			command[1] = (byte) ((len >>> 8) & 0xff);
 			command[2] = (byte) (len & 0xff);
-			// System.out.println("send "+(len));
+			// log.debug("send "+(len));
 			ob.sendData(command, 0, 3, true);
 			ob.sendData(foo, s, len, true);
 			s += len;
@@ -214,7 +214,7 @@ public class JHttpTunnelClient {
 	int buf_len = 0;
 
 	public int read(byte[] foo, int s, int l) throws IOException {
-		System.out.printf("[%s] Read called: bytes=%d s=%d l=%d%n", Thread.currentThread().getName(), foo.length , s, l);
+		log.debug("Read called: bytes=" + foo.length + " s=" + s + " l=" + l);
 		if (closed)
 			return -1;
 
@@ -229,7 +229,7 @@ public class JHttpTunnelClient {
 				//}
 				int i = ib.receiveData(foo, s, len);
 				buf_len -= i;
-				System.out.println("¡¡buf_len="+buf_len);
+				log.debug("¡¡buf_len="+buf_len);
 				return i;
 				
 				//**********************************************
@@ -242,7 +242,7 @@ public class JHttpTunnelClient {
 					return -1;
 				}
 				int request = foo[s] & 0xff;
-				System.out.println("request: "+request);
+				log.debug("request: "+request);
 				if ((request & JHttpTunnel.TUNNEL_SIMPLE) == 0) {
 					i = ib.receiveData(foo, s, 1);
 					len = (((foo[s]) << 8) & 0xff00);
@@ -253,7 +253,7 @@ public class JHttpTunnelClient {
 				switch (request) {
 				case JHttpTunnel.TUNNEL_DATA:
 					buf_len = len;
-					System.out.println("buf_len="+buf_len);
+					log.debug("buf_len="+buf_len);
 					/**
 					if (l < buf_len) {						
 						len = l;
@@ -266,20 +266,18 @@ public class JHttpTunnelClient {
 					while (len > 0) {
 						//*****************************************
 						
-						
-						System.out.printf("[%s] To be read i=%d len=%d s=%d%n", Thread.currentThread().getName(), i, len, s);												
+						log.debug("To be read: i=" + i + " len=" + len + " s=" + s);												
 						i = ib.receiveData(foo, s, len);
 						if (i < 0) break;
 						buf_len -= i;
 						s += i;
 						len -= i;
-						System.out.printf("[%s] After read i=%d len=%d s=%d buf_len=%d%n", Thread.currentThread().getName(), i, len, s, buf_len);						
-
+						log.debug("After read: i=" + i + " len=" + len + " s=" + s);											
 						
 						
 						//*****************************************
 					}
-					System.out.println("Received Data: "+(s-orgs));
+					log.debug("Received Data: "+(s-orgs));
 					return s - orgs;
 				case JHttpTunnel.TUNNEL_PADDING:
 					ib.receiveData(null, 0, len);
@@ -287,17 +285,17 @@ public class JHttpTunnelClient {
 				case JHttpTunnel.TUNNEL_ERROR:
 					byte[] error = new byte[len];
 					ib.receiveData(error, 0, len);
-					// System.out.println(new String(error, 0, len));
+					// log.debug(new String(error, 0, len));
 					throw new IOException("JHttpTunnel: " + new String(error, 0, len));
 				case JHttpTunnel.TUNNEL_PAD1:
 					continue;
 				case JHttpTunnel.TUNNEL_CLOSE:
 					closed = true;
 					// close();
-					System.out.println("CLOSE RECEIVED");
+					log.debug("CLOSE RECEIVED");
 					break;
 				case JHttpTunnel.TUNNEL_DISCONNECT:
-					System.out.println("Received DISCONNECT!!!!!!... Trying to connect ib back");
+					log.debug("Received DISCONNECT!!!!!!... Trying to connect ib back");
 					//closed = true;
 					//ib.setHost(dest_host);
                                         //ib.setPort(dest_port);
@@ -316,7 +314,7 @@ public class JHttpTunnelClient {
 		} catch (Exception e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
-			System.out.println("JHttpTunnelClient.read: "+ errors.toString());
+			log.error("JHttpTunnelClient.read: "+ errors.toString());
 		}
 		return -1;
 	}
@@ -376,8 +374,9 @@ public class JHttpTunnelClient {
 	}
 
 	public void close() {
-		// System.out.println("close");
+		// log.debug("close");
 		try {
+			timer.cancel();
 			sendClose();
 		} catch (Exception e) {
 		}
@@ -405,7 +404,7 @@ public class JHttpTunnelClient {
 	public static void main(String[] args) {
 		try {
 			if (args.length == 0) {
-				System.err.println("Enter hostname[:port]");
+				log.error("Enter hostname[:port]");
 				System.exit(1);
 			}
 			String host = args[0];
@@ -426,7 +425,7 @@ public class JHttpTunnelClient {
 				proxy_host = proxy_host.substring(0, proxy_host.lastIndexOf(':'));
 			}
 			
-			System.out.println("Opening local port: " + lport);
+			log.info("Opening local port: " + lport);
 			ServerSocket ss = new ServerSocket(lport);
 			ss.setReuseAddress(true);
 			Socket socket = ss.accept();
@@ -447,12 +446,13 @@ public class JHttpTunnelClient {
 
 			final InputStream jin = jhtc.getInputStream();
 			final OutputStream jout = jhtc.getOutputStream();
+			final ServerSocket _ss = ss;
 
 			Runnable runnable = new Runnable() {
 				public void run() {
 					byte[] tmp = new byte[1024];
 					try {
-						while (true) {
+						while (!_ss.isClosed()) {
 							int i = jin.read(tmp);
 							if (i > 0) {
 								sout.write(tmp, 0, i);
@@ -463,6 +463,7 @@ public class JHttpTunnelClient {
 					} catch (Exception e) {
 					}
 					try {
+						log.debug("Thread Closing Server Socket");
 						sin.close();
 						jin.close();
 						jhtc.close();
@@ -474,21 +475,31 @@ public class JHttpTunnelClient {
 			
 			byte[] tmp = new byte[1024];
 			try {
-				while (true) {
+				while (!ss.isClosed()) {
 					int i = sin.read(tmp);
-					System.out.println("i=" + i + " " + jout);
+					log.debug("i=" + i + " " + jout);
 					if (i > 0) {
 						jout.write(tmp, 0, i);
 						continue;
 					}
+					else if (i < 0) {						
+						while (!ss.isClosed()) {
+							ss.close();
+						}
+						log.debug("Closing Server Socket: " + ss.isClosed());
+						jhtc.close();
+						//sin.close();
+						//jin.close();						
+					}
 					break;
 				}
 			} catch (Exception e) {
+				log.debug("The client has disconnected?");
 			}
 		} catch (Exception e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
-			System.err.println("JHttpClient error: " + errors.toString());			
+			log.error("JHttpClient error: " + errors.toString());			
 		}
 	}
 }

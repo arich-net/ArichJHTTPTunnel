@@ -30,9 +30,11 @@
 package com.arichnet.jhttptunnel;
 
 import java.net.*;
+import org.apache.log4j.Logger;
 import java.io.*;
 
 public class InBoundURL extends InBound {
+	private static final Logger log = Logger.getLogger(InBoundURL.class);
 	private InputStream in = null;
 	private URLConnection con = null;
 
@@ -53,7 +55,7 @@ public class InBoundURL extends InBound {
 	public int receiveData(byte[] buf, int s, int l) throws IOException {
 		// System.out.println("receiveData: "+l);
 		if (l <= 0) {
-			System.out.println("receiveData: " + l);
+			log.debug("receiveData: " + l);			
 		}
 		if (l <= 0)
 			return -1;

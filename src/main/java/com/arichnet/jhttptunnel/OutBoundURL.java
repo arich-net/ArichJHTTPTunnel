@@ -30,9 +30,11 @@
 package com.arichnet.jhttptunnel;
 
 import java.net.*;
+import org.apache.log4j.Logger;
 import java.io.*;
 
 public class OutBoundURL extends OutBound {
+	private static final Logger log = Logger.getLogger(OutBoundURL.class);
 	private InputStream in = null;
 	private OutputStream out = null;
 	private URLConnection con = null;
@@ -56,7 +58,7 @@ public class OutBoundURL extends OutBound {
 
 	@Override
 	public void sendData(byte[] foo, int s, int l, boolean flush) throws IOException {
-		// System.out.println("sendData: l="+l+" sendCount="+sendCount+"
+		// log.debug("sendData: l="+l+" sendCount="+sendCount+"
 		// flush="+flush);
 		if (l <= 0)
 			return;
@@ -72,7 +74,7 @@ public class OutBoundURL extends OutBound {
 		int retry = 2;
 		while (retry > 0) {
 			try {
-				// System.out.println("write l="+l);
+				// log.debug("write l="+l);
 				out.write(foo, s, l);
 				sendCount -= l;
 				if (flush) {
@@ -90,12 +92,12 @@ public class OutBoundURL extends OutBound {
 				}
 				return;
 			} catch (SocketException e) {
-				System.out.println("2# " + e + " " + l + " " + flush);
+				log.error("2# " + e + " " + l + " " + flush);
 				throw e;
 				// connect();
 			} catch (IOException e) {
 				// System.out.println("2# "+e+" "+l+" "+flush);
-				System.out.println("2# " + e);
+				log.error("2# " + e);
 				connect();
 			}
 			retry--;
@@ -104,7 +106,7 @@ public class OutBoundURL extends OutBound {
 
 	@Override
 	public void close() throws IOException {
-		// System.out.println(this+".close() con="+con+" in="+in);
+		// log.info(this+".close() con="+con+" in="+in);
 		if (con != null) {
 			if (out != null) {
 				try {
@@ -117,7 +119,7 @@ public class OutBoundURL extends OutBound {
 				try {
 					/*
 					 * while(true){ int c=in.read(); if(c==-1)break; //
-					 * System.out.println("c="+c); }
+					 * log.debug("c="+c); }
 					 */
 					in.close();
 					in = null;
@@ -126,6 +128,6 @@ public class OutBoundURL extends OutBound {
 			}
 			con = null;
 		}
-		// System.out.println("close() done");
+		// log.info("close() done");
 	}
 }

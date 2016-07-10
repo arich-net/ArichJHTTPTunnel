@@ -30,9 +30,11 @@
 package com.arichnet.jhttptunnel;
 
 import java.net.*;
+import org.apache.log4j.Logger;
 import java.io.*;
 
 public class InBoundSocket extends InBound {
+	private static final Logger log = Logger.getLogger(InBoundSocket.class);
 	static final private byte[] _rn = "\r\n".getBytes();
 
 	private Socket socket = null;
@@ -42,7 +44,7 @@ public class InBoundSocket extends InBound {
 	@Override
 	public void connect() throws IOException {
 		close();
-		System.out.println("Calling connect from " + this.getClass().getName());
+		log.info("Calling connect from " + this.getClass().getName());		
 
 		String host = getHost();
 		int port = getPort();
@@ -111,7 +113,7 @@ public class InBoundSocket extends InBound {
 	@Override
 	public int receiveData(byte[] foo, int s, int l) throws IOException {
 		if (l <= 0) {
-			System.out.println("receivdEdaa: " + l);
+			log.debug("receivdEdaa: " + l);
 		}
 		if (l <= 0)
 			return -1;
@@ -129,13 +131,15 @@ public class InBoundSocket extends InBound {
 				if (i > 0) {
 					return i;
 				}
-				//System.out.println("1$ i="+i+" close="+closed);
-				//System.out.println("1$ i="+i+" connecting IB back again");
+				//log.debug("1$ i="+i+" close="+closed);
+				//log.debug("1$ i="+i+" connecting IB back again");
 				connect();
 			} catch (SocketException e) {
 				throw e;
 			} catch (IOException e) {
-				System.out.println("2$ " + e);
+				StringWriter errors = new StringWriter();
+				e.printStackTrace(new PrintWriter(errors));
+				log.error("InBoundSocket Error:" + errors.toString());
 				throw e;
 				// connect();
 			}

@@ -6,24 +6,26 @@ import java.nio.*;
 import java.text.*;
 import java.util.*;
 
+import org.apache.log4j.Logger;
+
 public class ForwardClient implements Runnable {
+	private static final Logger log = Logger.getLogger(ForwardClient.class);
 	String forward_host = "127.0.0.1";
 	String session_id = "";
 	int forward_port = 0;
 	Socket forward_socket = null;
 	InputStream forward_in = null;
 	OutputStream forward_out = null;
-	ByteBuffer buffer_in = ByteBuffer.allocateDirect(10240);
-	ByteBuffer buffer_out = ByteBuffer.allocateDirect(10240);
+
 	byte[] _rn = "\r\n".getBytes();
 	byte[] control = new byte[1];
 	boolean GETlocked = false;
 	boolean POSTlocked = false;
-	boolean buffer_in_locked = false;
-	boolean buffer_out_locked = false;
+
 	boolean tunnel_opened = false;
-	DateFormat date_format = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
-	private OutBoundServer out_server; 
+	//DateFormat date_format = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
+	private OutBoundServer out_server = null;
+	private InBoundServer in_server = null;
 	
 	// ByteArrayInputStream buffer_in = new ByteArrayInputStream(new
 	// byte[1024]);
@@ -34,7 +36,6 @@ public class ForwardClient implements Runnable {
 		forward_port = fport;
 		session_id = sid;
 		control[0] = 0;
-		buffer_in_locked = false;
 	}
 	
 	public ForwardClient(String fhost, int fport, String sid, OutBoundServer out) {
@@ -42,7 +43,6 @@ public class ForwardClient implements Runnable {
 		forward_port = fport;
 		session_id = sid;
 		control[0] = 0;
-		buffer_in_locked = false;
 		out_server = out;
 	}
 
@@ -51,7 +51,6 @@ public class ForwardClient implements Runnable {
 		forward_port = 22;
 		session_id = "123456";
 		control[0] = 0;
-		buffer_in_locked = false;
 	}
 
 	public void setForwardClientData(String h, int p, String s, OutBoundServer out) {
@@ -65,9 +64,8 @@ public class ForwardClient implements Runnable {
 	@Override
 	public void run() {
 		try {
-			System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-					           + "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] ¡¡¡¡¡ Starting forward client: " + 
-					           this.toString());
+			log.info("Starting forward client: " + this.toString());
+
 			// Connect to forward server
 			byte[] data_to_send = null;
 			byte[] data_to_receive = null;
@@ -82,169 +80,43 @@ public class ForwardClient implements Runnable {
 			message();
 
 			while (forward_socket.isConnected()) {
-				if (forward_in.available() > 0) {
-					if ((!buffer_in_locked) && (getBufferInPosition() == 0)) {
-						buffer_in_locked = true;
-						System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-								           + "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] ForwardIN available: "
-								           + forward_in.available());
-						if (forward_in.available() >= 10240) {
-							data_to_receive = new byte[10240];
-							forward_in.read(data_to_receive, 0, 10240);
-							buffer_in.put(data_to_receive, 0, 10240);
-						} else {
-							data_to_receive = new byte[forward_in.available()];
-							forward_in.read(data_to_receive);
-							//System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-							//		+ "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] " + Arrays.toString(data_to_receive));
-							buffer_in.put(data_to_receive);
-						}
-						buffer_in_locked = false;
+				if ((in_server != null) && (forward_in.available() > 0) &&
+					(!in_server.isLocked())) {					
+					in_server.lockTable();
+					log.debug("Forward Client data available: " + forward_in.available());
+					if (forward_in.available() >= 10240) {
+						data_to_receive = new byte[10240];
+						forward_in.read(data_to_receive, 0, 10240);
+						in_server.writeTable(data_to_receive);						
+					} else {
+						data_to_receive = new byte[forward_in.available()];
+						forward_in.read(data_to_receive);
+						//log.debug("ForwardIN Data: " + Arrays.toString(data_to_receive));
+						in_server.writeTable(data_to_receive);						
 					}
+					in_server.unlockTable();					
 				}
 				// Read Data from OutBoundServer Buffer				
 				data_to_send = out_server.readData();
 				
 				if (data_to_send != null) {
 					forward_out.write(data_to_send);
-					System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-			                           + "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] Forwarding Data: "
-			                           + data_to_send.length);
+					log.debug("ForwardOUT Length Data: " + data_to_send.length);
 				}
 				
-				
-				
-				/**
-				if ((!buffer_out_locked) && (buffer_out.position() > 0)) {
-					buffer_out_locked = true;
-					data_size = buffer_out.position();
-					buffer_out.position(0);
-					data_to_send = new byte[data_size];
-					buffer_out.get(data_to_send, 0, data_size);
-					forward_out.write(data_to_send, 0, data_size);
-					buffer_out.rewind();
-					buffer_out_locked = false;
-				}
-				*/
-				Thread.currentThread().sleep((long) 1);
+				Thread.currentThread().sleep((long) 10);
 			}
 		} catch (IOException e) {
+			StringWriter errors = new StringWriter();
+			e.printStackTrace(new PrintWriter(errors));
+			log.error("ForwardClient IOException Error: " + errors.toString());			
 		} catch (Exception e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
-			System.out.println("**********************************");
-			this.message();
-			System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-					+ "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] ForwardClient error: " + errors.toString());
-			System.out.println("**********************************");
+			log.error("ForwardClient error: " + errors.toString());
 		}
 
 	}
-
-	public byte[] readInputBuffer(int position) {
-		byte[] return_data = null;
-		byte[] tmp = null;
-
-		// Lock buffer to avoid overwrite
-		buffer_in_locked = true;
-
-		int currentPosition = buffer_in.position();
-		if (position < currentPosition) {
-			return_data = new byte[position];
-			buffer_in.rewind();
-			buffer_in.get(return_data, 0, position);
-			tmp = new byte[currentPosition - position];
-			buffer_in.get(tmp);
-			buffer_in.rewind();
-			buffer_in.put(tmp);
-		} else if (position == currentPosition) {
-			return_data = new byte[currentPosition];
-			buffer_in.rewind();
-			try {
-				buffer_in.get(return_data);
-			} catch (BufferUnderflowException e) {
-				System.out.println("ERROR OF UNDERFLOW DETECTED");
-				System.out.println("Requested Pointer: " + position);
-				System.out.println("Pointer: " + currentPosition);
-				System.out.println("Actual Position: " + buffer_in.position());
-				StringWriter errors = new StringWriter();
-				e.printStackTrace(new PrintWriter(errors));
-				System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-						+ "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] ForwardClient error: " + errors.toString());
-			}
-			buffer_in.rewind();
-		}
-
-		buffer_in_locked = false;
-		return return_data;
-	}
-
-	public int getBufferInPosition() {
-		return buffer_in.position();
-	}
-
-	public boolean getBufferInLocked() {
-		return buffer_in_locked;
-	}
-
-	public int getBufferOutPosition() {
-		return buffer_out.position();
-	}
-
-	public void writeOutputBufferln(byte[] bytes_data) {
-		// System.out.println("Buffer status: " + buffer_out.position());
-		writeOutputBuffer(bytes_data);
-		buffer_out.put(_rn, 0, 2);
-		// System.out.println("[" +
-		// date_format.format(Calendar.getInstance().getTime()) + "] " +
-		// Thread.currentThread().getName() +
-		// " | Byte Output Stream Size + Enter: " + bytes_data.length);
-	}
-
-	public synchronized void writeOutputBuffer(byte[] bytes_data) {
-		// System.out.println("Buffer status: " + buffer_out.position());
-		buffer_out.put(bytes_data, 0, bytes_data.length);
-		System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-				+ "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] *** Byte Output Stream Size: " + bytes_data.length);
-	}
-
-	public void lockOutputBuffer() {
-		System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-				+ "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] *** Locking Output Buffer ");
-		buffer_out_locked = true;
-	}
-
-	public void unlockOutputBuffer() {
-		System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-				+ "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] *** Unlocking Output Buffer ");
-		buffer_out_locked = false;
-	}
-
-	public synchronized boolean getBufferOutLocked() {
-		return buffer_out_locked;
-	}
-
-	public synchronized boolean isBufferOutAvailable() {
-		if ((!buffer_out_locked) && (buffer_out.position() == 0)) {
-			buffer_out_locked = true;
-			System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-					+ "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] *** Locking Output Buffer ");
-			return true;
-		}
-		return false;
-	}
-
-	/**
-	 * public void sendPAD1() { // buffer_in.put(JHttpTunnel.TUNNEL_PAD1);
-	 * control[0] = JHttpTunnel.TUNNEL_PAD1; }
-	 * 
-	 * public void sendCLOSE() { // buffer_in.put(JHttpTunnel.TUNNEL_CLOSE);
-	 * control[0] = JHttpTunnel.TUNNEL_CLOSE; }
-	 * 
-	 * public void zeroCONTROL() { control[0] = 0; }
-	 * 
-	 * public byte[] getCONTROL() { return control; }
-	 */
 
 	public byte[] getCONTROL() {
 		return control;
@@ -263,7 +135,7 @@ public class ForwardClient implements Runnable {
 
 	public void close() {
 		try {
-			while (!forward_socket.isClosed()) {
+			while (!forward_socket.isClosed()) {				
 				forward_socket.close();
 			}
 			while (!Thread.currentThread().interrupted()) {
@@ -272,12 +144,11 @@ public class ForwardClient implements Runnable {
 		} catch (Exception e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
-			System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-					+ "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] ForwardClient error: " + errors.toString());
+			log.error("ForwardClient error: " + errors.toString());
 		}
 	}
 
-	public boolean getGETlocked() {
+	public boolean getGETlocked() {		
 		return GETlocked;
 	}
 
@@ -300,13 +171,17 @@ public class ForwardClient implements Runnable {
 	public boolean getTunnelOpened(){
 		return tunnel_opened;
 	}
+	
+	public void setInboundServer(InBoundServer in) {
+		in_server = in;
+	}
+	
+	public InBoundServer getInboundServer(){
+		return in_server;
+	}
 
 	public void message() {
-		System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-				+ "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() 
-				+ "] ForwardClient MESSAGE request, " + " Buffer IN, "
-				+ buffer_in.toString() + ", " + " Buffer OUT: " + buffer_out.toString() + ", " + " Socket INFO: "
-				+ forward_socket.toString());
+		log.debug("ForwardClient MESSAGE request Socket INFO: "	+ forward_socket.toString());
 	}
 
 	public String getThreadID() {

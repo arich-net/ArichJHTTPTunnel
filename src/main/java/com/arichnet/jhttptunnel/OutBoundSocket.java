@@ -30,19 +30,25 @@
 package com.arichnet.jhttptunnel;
 
 import java.net.*;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import org.apache.log4j.Logger;
+
 import java.io.*;
 
 public class OutBoundSocket extends OutBound {
+	private static final Logger log = Logger.getLogger(OutBoundSocket.class);
 	static final private byte[] _rn = "\r\n".getBytes();
 
 	private Socket socket = null;
 	private InputStream in = null;
-	private OutputStream out = null;
+	private OutputStream out = null;	
 
 	@Override
 	public void connect() throws IOException {
-		close();
-		System.out.println("Calling connect from " + this.getClass().getName());
+		//close(); This was causing the socket to cleanup before being processes on the server side
+		log.info("Calling connect from: " + this.getClass().getName());
 
 		String host = getHost();
 		int port = getPort();
@@ -86,7 +92,7 @@ public class OutBoundSocket extends OutBound {
 		if (l <= 0)
 			return;
 		if (sendCount <= 0) {
-			System.out.println("1#");
+			log.debug("1#");			
 			connect();
 		}
 
@@ -115,6 +121,7 @@ public class OutBoundSocket extends OutBound {
 		if (socket != null) {
 			if (out != null) {
 				try {
+					log.debug("Flushing and closing socket");					
 					out.flush();
 					out.close();
 				} catch (IOException e) {

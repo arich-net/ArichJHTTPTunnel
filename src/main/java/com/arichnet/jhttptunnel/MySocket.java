@@ -29,24 +29,29 @@ import java.net.*;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import org.apache.log4j.Logger;
 
 public class MySocket {
+	private static final Logger log = Logger.getLogger(MySocket.class);
 
 	Socket socket = null;
-	private DataInputStream dataInputStream = null;
+	private DataInputStream dataInputStream = null;	
 	private OutputStream os = null;
-	private DateFormat date_format = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
+	private BufferedReader bread = null;	
 
 	MySocket(Socket s) throws IOException {
 		try {
 			s.setTcpNoDelay(true);
 		} catch (Exception e) {
-			System.out.println(e + " tcpnodelay");
+			StringWriter errors = new StringWriter();
+			e.printStackTrace(new PrintWriter(errors));
+			log.error("Errors with tcpnodelay: " + errors.toString());
 		}
 		socket = s;
-		BufferedInputStream bis = new BufferedInputStream(s.getInputStream());
+		BufferedInputStream bis = new BufferedInputStream(s.getInputStream());		
 		dataInputStream = new DataInputStream(bis);
 		os = s.getOutputStream();
+		bread = new BufferedReader(new InputStreamReader(s.getInputStream()));
 	}
 
 	public InputStream getInputStream() {
@@ -68,11 +73,15 @@ public class MySocket {
 	}
 
 	public int read(byte[] buf, int off, int len) {
-		try {
-			return dataInputStream.read(buf, off, len);
+		try {			
+			int ret_value = dataInputStream.read(buf, off, len);
+			return ret_value; 
 		} catch (IOException e) {
+			StringWriter errors = new StringWriter();
+			e.printStackTrace(new PrintWriter(errors));			
+			log.error("MySocket Read error" + errors.toString());
 			return -1;
-		}
+		}		
 	}
 
 	public int readByte() {
@@ -86,14 +95,13 @@ public class MySocket {
 
 	/* Method is being deprecated it should be used BufferedReader instead */
 	public String readLine() {
-		try {			
+		try {
+			//return (bread.readLine());
 			return (dataInputStream.readLine());
 		} catch (IOException e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));			
-			System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-					           + "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + 
-					           "] MySocket ReadLine error" + errors.toString());
+			log.error("MySocket ReadLine error" + errors.toString());
 			return (null);
 		}
 	}
@@ -156,8 +164,9 @@ public class MySocket {
 	}
 
 	public void getStatus() {
-		System.out.println("Thread: " + Thread.currentThread().getName() + " | Socket Status: Bound=>"
-				+ socket.isBound() + " Closed=>" + socket.isClosed() + " Connected=>" + socket.isConnected());
+		log.info("Socket Status: Bound=>" + socket.isBound() + 
+				 " Closed=>" + socket.isClosed() + 
+				 " Connected=>" + socket.isConnected());
 	}
 
 	public boolean isConnected() {

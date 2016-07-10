@@ -31,8 +31,10 @@ package com.arichnet.jhttptunnel;
 
 import java.io.*;
 import java.net.*;
+import org.apache.log4j.Logger;
 
 public class OutBoundConnector extends OutBound {
+	private static final Logger log = Logger.getLogger(OutBoundConnector.class);
 	private InputStream in = null;
 	private OutputStream out = null;
 	private HttpURLConnection con = null;
@@ -42,7 +44,7 @@ public class OutBoundConnector extends OutBound {
 
 	@Override
 	public void connect() throws IOException {
-		// System.out.println("OutBound: connect");
+		log.info("OutBound: connect");
 		// close();
 
 		String host = getHost();

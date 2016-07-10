@@ -26,11 +26,13 @@ package com.arichnet.jhttptunnel;
 
 import java.io.*;
 import java.net.*;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import org.apache.log4j.Logger;
 
 public class JHttpTunnelServer extends Thread {
+	private static final Logger log = Logger.getLogger(JHttpTunnelServer.class);
 
 	static int connections = 0;
 	static int client_connections = 0;
@@ -43,22 +45,27 @@ public class JHttpTunnelServer extends Thread {
 
 	private String forward_host;
 	private int forward_port;
-	private Hashtable<String, ForwardClient> clientsTable;
-	
-	//NUEVO
+	//Initialise Forward Clients table linked to SESSIONID
+	private Hashtable<String, ForwardClient> clientsTable;	
+	//Initialise outBoundServerTable linked to SESSIONID
 	private Hashtable<String, BoundServer> outBoundServerTable;
-	private DateFormat date_format = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
+	//Initialise inBoundServerTable linked to SESSIONID
+	private Hashtable<String, BoundServer> inBoundServerTable;
 	
+	private final ExecutorService pool;
 	
 	private List<Integer> postRemotePorts = new ArrayList<Integer>(); 
 
-	JHttpTunnelServer(int port) {
+	JHttpTunnelServer(int port, int poolSize) {
 		super();
+		pool = Executors.newFixedThreadPool(poolSize);
 		connections = 0;
 		try {
 			serverSocket = new ServerSocket(port);
 		} catch (IOException e) {
-			System.out.println("ServerSocket error" + e);
+			StringWriter errors = new StringWriter();
+			e.printStackTrace(new PrintWriter(errors));
+			log.error("ServerSocket error: " + errors.toString());
 			System.exit(1);
 		}
 		try {
@@ -66,19 +73,22 @@ public class JHttpTunnelServer extends Thread {
 				myURL = "http://" + InetAddress.getLocalHost().getHostAddress() + ":" + port;
 			else
 				myURL = "http://" + myaddress + ":" + port;
-			System.out.println("myURL: " + myURL);
+			log.info("myURL: " + myURL);
 		} catch (Exception e) {
-			System.out.println(e);
+			StringWriter errors = new StringWriter();
+			e.printStackTrace(new PrintWriter(errors));
+			log.error("JHttpTunnelServer error: " + errors.toString());
 		}
 	}
 
-	JHttpTunnelServer(int lport, String fhost, int fport) {
-		this(lport);
+	JHttpTunnelServer(int lport, String fhost, int fport, int poolSize) {		
+		this(lport, poolSize);
 		this.forward_host = fhost;
 		this.forward_port = fport;
 		// this.forward_client = new ForwardClient();
 		this.clientsTable = new Hashtable<String, ForwardClient>();
 		this.outBoundServerTable = new Hashtable<String, BoundServer>(); 
+		this.inBoundServerTable = new Hashtable<String, BoundServer>();
 	}
 
 	@Override
@@ -88,7 +98,7 @@ public class JHttpTunnelServer extends Thread {
 			try {
 				socket = serverSocket.accept();
 			} catch (IOException e) {
-				System.out.println("Socket accept error, probably the port is busy");
+				log.error("Socket accept error, probably the port is busy");
 				System.exit(1);
 			}
 			connections++;
@@ -100,22 +110,11 @@ public class JHttpTunnelServer extends Thread {
 			final Hashtable<String, ForwardClient> _clientsTable = clientsTable;
 			final List<Integer> _postRemotePorts = postRemotePorts;
 			final Hashtable<String, BoundServer> _outBoundServerTable = outBoundServerTable;
-
-			new Thread(new Runnable() {
-				@Override
-				public void run() {
-					try {
-						//(new JHttpServerConnection(_socket, _host, _port, _clientsTable, _postRemotePorts)).newsocket();
-						(new JHttpServerConnection(_socket, _host, _port, _clientsTable, _postRemotePorts, _outBoundServerTable)).newsocket();
-					} catch (Exception e) {
-						StringWriter errors = new StringWriter();
-						e.printStackTrace(new PrintWriter(errors));			
-						System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] "
-								           + "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + 
-								           "] JHttpServer Error:" + errors.toString());
-					}
-				}
-			}).start();
+			final Hashtable<String, BoundServer> _inBoundServerTable = inBoundServerTable;			
+						
+			pool.execute(new JHttpServerHandler(_socket, _host, _port, _clientsTable, 
+							_postRemotePorts, _outBoundServerTable, _inBoundServerTable));			
+						
 		}
 	}
 
@@ -130,6 +129,7 @@ public class JHttpTunnelServer extends Thread {
 
 		String fhost = null;
 		int fport = 0;
+		int limitThreads = 10;
 		String _fw = System.getProperty("forward");
 
 		if (_fw != null && _fw.indexOf(':') != -1) {
@@ -140,6 +140,6 @@ public class JHttpTunnelServer extends Thread {
 			System.err.println("forward-port is not given");
 			System.exit(1);
 		}
-		(new JHttpTunnelServer(port, fhost, fport)).start();
+		(new JHttpTunnelServer(port, fhost, fport, limitThreads)).start();
 	}
 }

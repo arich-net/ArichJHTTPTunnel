@@ -11,7 +11,7 @@ abstract class BoundServer {
 	
 	public void setForwardClient(ForwardClient f) {
 		forward_client = f;
-	}
+	}	
 	
 	public ForwardClient getForwardClient(ForwardClient f) {
 		return forward_client;
@@ -60,5 +60,33 @@ abstract class BoundServer {
 		buffer.get(return_value);
 		setLockRead(false);
 		return return_value;
+	}
+	
+	public boolean getTunnelOpened() {
+		return forward_client.getTunnelOpened();
+	}
+	
+	public void setTunnelOpened(boolean flag) {
+		forward_client.setTunnelOpened(flag);
+	}
+	
+	public void fcl_message() {
+		forward_client.message();
+	}
+	
+	public void fcl_close() {
+		forward_client.close();
+	}
+	
+	public boolean fcl_isClosed() {
+		return forward_client.isClosed();
+	}
+	
+	public void fcl_setGETLocked(boolean flag) {
+		forward_client.setGETlocked(flag);
+	}
+	
+	public boolean fcl_getGETLocked(){
+		return forward_client.getGETlocked();
 	}
 }

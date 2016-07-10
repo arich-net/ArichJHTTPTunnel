@@ -6,10 +6,11 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Enumeration;
 import java.util.Hashtable;
+import org.apache.log4j.Logger;
 
 public class OutBoundServer extends BoundServer{
+	private static final Logger log = Logger.getLogger(OutBoundServer.class);
 	private Hashtable<Integer, ByteBuffer> buffer_table = new Hashtable<Integer, ByteBuffer>();
-	private DateFormat date_format = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
 	
 	public OutBoundServer(ForwardClient f){
 		setForwardClient(f);
@@ -25,8 +26,7 @@ public class OutBoundServer extends BoundServer{
 		int data_wrote;				
 		
 		if ((buf == null) || (buf.position() >= JHttpTunnel.BUFFER_LENGTH)) {
-			System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] " + 
-	                           "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] Buffer OutBoundServer NULL or Exceed maximum");
+			log.debug("Buffer OutBoundServer NULL or Exceeded maximum value");
 			return -1;
 		}
 		
@@ -40,9 +40,7 @@ public class OutBoundServer extends BoundServer{
 		}		
 		buffer_table.remove(remote_port);
 		buffer_table.put(remote_port, buf);
-		System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] " + 
-		                   "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] Buffer Data Stored:" + buf.position() +
-		                   " | TCP remote port:" + remote_p);
+		log.debug("Buffer Data Stored:" + buf.position() + " | TCP remote port:" + remote_p);
 		
 		return data_wrote;
 	}		
@@ -56,13 +54,6 @@ public class OutBoundServer extends BoundServer{
 		Enumeration remote_ports = buffer_table.keys();		
 		while(remote_ports.hasMoreElements()){
 			temp = (Integer)remote_ports.nextElement();
-			/**
-			if (buffer_table.get(temp) != null) {
-			    System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] " + 
-	                   		       "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + "] Remote Port Found:" + temp +
-	                   		       " | Buffer Position:" + ((ByteBuffer) buffer_table.get(temp)).position());
-			}
-			*/
 			if (temp < pivot)
 				pivot = temp;
 		}
@@ -81,9 +72,7 @@ public class OutBoundServer extends BoundServer{
 	public synchronized boolean removePort(int remote_p) {
 		try {
 		   buffer_table.remove(new Integer(remote_p));
-		   System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] " + 
-	                          "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + 
-	                          "] Close remote port:" + remote_p);
+		   log.debug("Close remote port:" + remote_p);
 		   return true;
 		}
 		catch (Exception e){
@@ -95,9 +84,7 @@ public class OutBoundServer extends BoundServer{
 		try {
 		   ByteBuffer buf = ByteBuffer.allocateDirect(JHttpTunnel.BUFFER_LENGTH);
 		   buffer_table.put(new Integer(remote_p), buf);
-		   System.out.println("[" + date_format.format(Calendar.getInstance().getTime()) + "] " + 
-       		                  "[" + Thread.currentThread().getName() + "|" + this.getClass().getName() + 
-       		                  "] Init remote port:" + remote_p);
+		   log.debug("Init remote port:" + remote_p);
 		   return true;
 		}
 		catch (Exception e){
