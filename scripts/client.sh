@@ -1,4 +1,83 @@
 #!/bin/bash
+#  v1.0 Ariel Vasquez
+
+usage="
+Java HttpTunnel client program.
+
+usage:
+    $(basename "$0") [-h|--help] [-L|--local-port LOCALPORT] [-P|--proxy-host PROXYHOST] (http|https)://[SERVER]:[PORT]
+
+where:
+    -h|--help		show help for this script
+    -L|--local-port	set the local port to listen. It must be a number between 1025-65536
+    -P|--proxy-host	set the proxy settings http://[PROXY_HOST]:[PROXY_PORT]
+"
+
+getservervars() {
+   re='^(http|https)://([A-Za-z0-9\.]+):([0-9]+)$'
+   if [[ $1 =~ $re ]]; then
+      JHTTP_SERVER_HOST=${BASH_REMATCH[2]}
+      JHTTP_SERVER_PORT=${BASH_REMATCH[3]}
+   else
+      error
+   fi
+}
+
+getproxyvars() {
+   re='^http://([A-Za-z0-9\.]+):([0-9]+)$'
+   if [[ $1 =~ $re ]]; then
+      PROXY_HOST=${BASH_REMATCH[1]}
+      PROXY_PORT=${BASH_REMATCH[2]}
+   else
+      error
+   fi
+}
+
+error() {
+   echo "Invalid syntax"
+   echo "$usage"
+   exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+   key="$1"
+   case $key in
+      -h|--help)
+         shift
+         echo "$usage"
+         exit 0
+         ;;
+      -L|--local-port)
+         re='^[0-9]+$'
+         if [[ $2 =~ $re ]] && [ "$2" -ge 1025 -a "$2" -lt 65536 ]; then
+            LOCAL_PORT=$2
+            shift
+         else
+            error
+         fi
+         shift
+         ;;
+      -P|--proxy-host)
+         if [ "$2" != ""  ]; then
+            PROXY=$2
+            shift
+         else
+            error
+         fi
+         shift
+         ;;
+      *)
+         DEFAULT=$key
+         shift
+         ;;
+   esac
+done
+
+getservervars $DEFAULT
+if [ "$PROXY" != ""  ]; then
+   getproxyvars $PROXY
+fi
+
 if [ "$JAVA_HOME" != "" ]; then
    JAVA_HOME="$JAVA_HOME"
 else
@@ -11,17 +90,15 @@ else
    JHTTPTUNNEL_HOME=/home/arich/Documents/ECLIPSE/Arich_Java_Projects/ArichJHTTPTunnel
 fi
 
+if [ "$JHTTP_SERVER_HOST" == "" -o "$JHTTP_SERVER_PORT" == "" ]; then
+   error
+fi
+
 M2_REPO=~/.m2/repository
 M2_LOG4J=$M2_REPO/log4j/log4j/1.2.17/log4j-1.2.17.jar
 M2_JUNIT=$M2_REPO/junit/junit/3.8.1/junit-3.8.1.jar
 CLASSPATH=.:$JHTTPTUNNEL_HOME/target/ArichJHTTPTunnel-1.0-0.jar:$M2_LOG4J:$M2_JUNIT
 CLASSPATH=$CLASSPATH:$JHTTPTUNNEL_HOME/config
-#JHTTP_SERVER_HOST=192.168.1.13
-JHTTP_SERVER_HOST=127.0.0.1
-JHTTP_SERVER_PORT=8888
-LOCAL_PORT=22222
-#PROXY_HOST=192.168.1.254
-#PROXY_PORT=3128
 
 if [ "$PROXY_HOST" != "" ]; then
    $JAVA_HOME/bin/java -Dlport=$LOCAL_PORT \
