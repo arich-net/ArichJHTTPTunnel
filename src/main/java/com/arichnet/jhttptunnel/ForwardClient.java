@@ -79,7 +79,7 @@ public class ForwardClient implements Runnable {
 
 			message();
 
-			while (forward_socket.isConnected() && !forward_socket.isClosed) {
+			while (forward_socket.isConnected() && !forward_socket.isClosed()) {
 				if ((in_server != null) && (forward_in.available() > 0) &&
 					(!in_server.isLocked())) {					
 					in_server.lockTable();
@@ -135,6 +135,7 @@ public class ForwardClient implements Runnable {
 
 	public void close() {
 		try {
+			log.debug("Closing ForwardClient: " + this);
 			while (!forward_socket.isClosed()) {				
 				forward_socket.close();
 			}

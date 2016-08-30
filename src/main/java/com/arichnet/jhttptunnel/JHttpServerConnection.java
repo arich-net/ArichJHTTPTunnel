@@ -111,7 +111,7 @@ class JHttpServerConnection {
 			else {				
 				out_server = new OutBoundServer();
 				outBoundServerTable.put(session_id, out_server);
-				log.debug("Add server outbound buffer with sid : " + session_id);			o	
+				log.debug("Add server outbound buffer with sid : " + session_id);	
 			}
 			
 			Integer remote_port = new Integer(mySocket.getRemotePort());
