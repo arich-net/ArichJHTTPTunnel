@@ -111,7 +111,7 @@ class JHttpServerConnection {
 			else {				
 				out_server = new OutBoundServer();
 				outBoundServerTable.put(session_id, out_server);
-				log.debug("Add server outbound buffer with sid : " + session_id);				
+				log.debug("Add server outbound buffer with sid : " + session_id);			o	
 			}
 			
 			Integer remote_port = new Integer(mySocket.getRemotePort());
@@ -323,7 +323,8 @@ class JHttpServerConnection {
 							//forward_client.setCONTROL(JHttpTunnel.TUNNEL_CLOSE);
 							//tunnel_opened = false;
 							out_server.setTunnelOpened(false);
-							closeForwardClient(out_server);							
+							//closeForwardClient(out_server);
+							closeForwardClient();
 							break;
 						}
 					}
@@ -456,12 +457,24 @@ class JHttpServerConnection {
 		}
 	}
 
-	private void closeForwardClient(BoundServer bound) {		
+	private void closeForwardClient() {		
 		log.debug("Closing forward client for session id: " + session_id);
-		// Remove the client from client hash table
-		clientsTable.remove(session_id);
-		// Close the Forward Client
-		bound.fcl_close();
+		// // Close the Forward Client
+		BoundServer bserver = (BoundServer) outBoundServerTable.get(session_id);
+		BoundServer bserver2 = (BoundServer) inBoundServerTable.get(session_id);
+
+		while (!bserver.fcl_isClosed()) {
+			bserver.fcl_close();
+		}
+
+		//null the BoundServers
+		bserver = null;
+		bserver2 = null;
+		
+		// Remove the client from all hash tables
+		outBoundServerTable.remove(session_id);
+		inBoundServerTable.remove(session_id);
+		clientsTable.remove(session_id);				
 	}
 
 	private void sendok(MySocket socket) throws IOException {
