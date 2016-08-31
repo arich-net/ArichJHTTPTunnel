@@ -291,7 +291,7 @@ public class JHttpTunnelClient {
 					continue;
 				case JHttpTunnel.TUNNEL_CLOSE:
 					closed = true;
-					// close();
+					close();
 					log.debug("CLOSE RECEIVED");
 					break;
 				case JHttpTunnel.TUNNEL_DISCONNECT:

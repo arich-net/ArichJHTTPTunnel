@@ -32,6 +32,7 @@ package com.arichnet.jhttptunnel;
 import java.net.*;
 import org.apache.log4j.Logger;
 import java.io.*;
+import java.util.*;
 
 public class InBoundSocket extends InBound {
 	private static final Logger log = Logger.getLogger(InBoundSocket.class);
@@ -81,6 +82,7 @@ public class InBoundSocket extends InBound {
 		in = socket.getInputStream();
 
 		byte[] tmp = new byte[1];
+		log.debug("While connecting tmp: " + Arrays.toString(tmp));
 		while (true) {
 			int i = in.read(tmp, 0, 1);
 			if (i > 0) {

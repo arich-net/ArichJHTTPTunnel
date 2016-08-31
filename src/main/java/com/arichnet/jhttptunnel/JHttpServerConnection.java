@@ -384,6 +384,7 @@ class JHttpServerConnection {
 			
 			//We initialise the PAD send
 			final MySocket fsocket = socket;
+			final BoundServer fin_server = in_server;
 			Runnable runnableSendPad = new Runnable() {
 				byte[] pad = new byte[1];				
 				@Override
@@ -392,6 +393,7 @@ class JHttpServerConnection {
 					try {
 					    fsocket.write(pad, 0, 1);
 					    log.debug("Server PAD sent");
+					    fin_server.fcl_message();
 					} catch (Exception e){
 						log.error("Error sending PAD");
 					}
@@ -429,6 +431,14 @@ class JHttpServerConnection {
 				if (!keep_request) {
 					buff[0] = JHttpTunnel.TUNNEL_DISCONNECT;
 					socket.write(buff, 0, 1);
+					getTraffic++;
+				}
+
+				if (in_server.getSendClose()) {
+					log.debug("Closing the socket and sending CLOSE signal");
+					buff[0] = JHttpTunnel.TUNNEL_CLOSE;
+					socket.write(buff, 0, 1);
+					keep_request = false;
 					getTraffic++;
 				}
 

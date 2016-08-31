@@ -73,6 +73,7 @@ public class ForwardClient implements Runnable {
 
 			forward_socket = new Socket(forward_host, forward_port);
 			forward_socket.setTcpNoDelay(true);
+			forward_socket.setSoTimeout(2000);
 
 			forward_in = forward_socket.getInputStream();
 			forward_out = forward_socket.getOutputStream();
@@ -103,13 +104,18 @@ public class ForwardClient implements Runnable {
 					forward_out.write(data_to_send);
 					log.debug("ForwardOUT Length Data: " + data_to_send.length);
 				}
+
+				if (in_server.getSendClose()) {
+					close();
+				}
 				
 				Thread.currentThread().sleep((long) 10);
 			}
 		} catch (IOException e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
-			log.error("ForwardClient IOException Error: " + errors.toString());			
+			log.error("ForwardClient IOException Error - Cleaning socket: " + errors.toString());
+			close();			
 		} catch (Exception e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
@@ -136,6 +142,10 @@ public class ForwardClient implements Runnable {
 	public void close() {
 		try {
 			log.debug("Closing ForwardClient: " + this);
+			in_server.setSendClose(true);
+			// Wait some time for the CLOSE command to be sent by JHttpServerConnection
+			Thread.currentThread().sleep((long) 50);
+
 			while (!forward_socket.isClosed()) {				
 				forward_socket.close();
 			}
@@ -175,6 +185,7 @@ public class ForwardClient implements Runnable {
 	
 	public void setInboundServer(InBoundServer in) {
 		in_server = in;
+		in_server.setSendClose(false);
 	}
 	
 	public InBoundServer getInboundServer(){
@@ -183,9 +194,13 @@ public class ForwardClient implements Runnable {
 
 	public void message() {
 		log.debug("ForwardClient MESSAGE request Socket INFO: "	+ forward_socket.toString());
+		log.debug("ForwardClient status: isBound:" + forward_socket.isBound() + 
+                          " isClosed:" + forward_socket.isClosed() + 
+		          " isConnected:" + forward_socket.isConnected());
 	}
 
 	public String getThreadID() {
 		return Thread.currentThread().getName();
 	}
+
 }
