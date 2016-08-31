@@ -346,7 +346,7 @@ class JHttpServerConnection {
 				}
 
 				Thread.currentThread().sleep((long) 10);
-			} while (keep_request && (!forward_client.isClosed()));
+			} while (keep_request && (!forward_client.isClosed()) && (!out_server.getSendClose()));
 
 			log.info("About to CLOSE POST socket... ");
 			out_server.removePort(remote_port);

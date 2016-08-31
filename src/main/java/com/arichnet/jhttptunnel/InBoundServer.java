@@ -12,7 +12,6 @@ public class InBoundServer extends BoundServer{
 	private int traffic_tag;
 	private Hashtable<Integer, ByteBuffer> server_inbound_table;
 	private boolean table_lock;
-	private boolean sendClose = false;
 	
 	public InBoundServer(ForwardClient f){
 		setForwardClient(f);
@@ -128,15 +127,6 @@ public class InBoundServer extends BoundServer{
 		//log.debug("InBound has data: " + ret_value);
 		return ret_value;
 	}
-
-        public void setSendClose(boolean flag) {
-                sendClose = flag;
-        }
-
-        public boolean getSendClose() {
-                return sendClose;
-        }
-
 	
 	public void lockTable(){
 		//log.debug("InBound locking");

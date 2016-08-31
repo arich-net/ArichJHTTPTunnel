@@ -111,6 +111,17 @@ public class ForwardClient implements Runnable {
 				
 				Thread.currentThread().sleep((long) 10);
 			}
+
+		} catch (ConnectException e) {
+			StringWriter errors = new StringWriter();
+			e.printStackTrace(new PrintWriter(errors));
+			log.error("ForwardClient ConnectException Error - Cleaning socket: " + errors.toString());
+			if (in_server != null)
+				in_server.setSendClose(true);
+			if (out_server != null)
+				out_server.setSendClose(true);
+			close();
+
 		} catch (IOException e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
@@ -142,7 +153,7 @@ public class ForwardClient implements Runnable {
 	public void close() {
 		try {
 			log.debug("Closing ForwardClient: " + this);
-			in_server.setSendClose(true);
+			(in_server != null) && in_server.setSendClose(true);
 			// Wait some time for the CLOSE command to be sent by JHttpServerConnection
 			Thread.currentThread().sleep((long) 50);
 
