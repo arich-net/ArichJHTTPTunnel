@@ -153,9 +153,15 @@ class JHttpServerConnection {
 				// Waiting for the forward client to start
 				try {
 					Thread.currentThread().sleep((long) 10);
+					if (!isThreadRunning(session_id)) {
+						sendClientCloseSignal(mySocket);
+						break;
+					}
 				} catch (Exception e) {
 				}
 			}
+			printThreadRunning();
+			log.debug("Client Table: " + clientsTable.toString());	
 			forward_client = (ForwardClient) clientsTable.get(session_id);
 			log.info("GET called: " + forward_client.toString());			
 
@@ -346,7 +352,11 @@ class JHttpServerConnection {
 				}
 
 				Thread.currentThread().sleep((long) 10);
-			} while (keep_request && (!forward_client.isClosed()) && (!out_server.getSendClose()));
+			} while (keep_request && (!forward_client.isClosed()) && 
+			         (!out_server.getSendClose()) && isThreadRunning(session_id));
+
+			if (out_server.getSendClose())
+				cleanupTables();
 
 			log.info("About to CLOSE POST socket... ");
 			out_server.removePort(remote_port);
@@ -380,6 +390,7 @@ class JHttpServerConnection {
 			// Start the PAD sent only if the tunnel is opened
 			while (!in_server.getTunnelOpened()) {
 				Thread.currentThread().sleep((long) 10);
+				log.debug("Waiting for the tunnel to be opened");
 			}
 			
 			//We initialise the PAD send
@@ -436,8 +447,7 @@ class JHttpServerConnection {
 
 				if (in_server.getSendClose()) {
 					log.debug("Closing the socket and sending CLOSE signal");
-					buff[0] = JHttpTunnel.TUNNEL_CLOSE;
-					socket.write(buff, 0, 1);
+					sendClientCloseSignal(socket);
 					keep_request = false;
 					getTraffic++;
 				}
@@ -445,14 +455,20 @@ class JHttpServerConnection {
 				// Do nothing
 				Thread.currentThread().sleep((long) 10);
 
-			} while (keep_request && (!in_server.fcl_isClosed()));
+			} while (keep_request && (!in_server.fcl_isClosed()) && isThreadRunning(session_id));
 			
 			// Stopping scheduler
+			if (in_server.getSendClose())
+				cleanupTables();
 			scheduledPool.shutdown();
 			log.info("About to CLOSE GET socket... ");
 			close(socket);
 			in_server.fcl_setGETLocked(false);				
 			
+		} catch (InterruptedException e) {
+			log.error("Thread interrupted");
+			cleanupTables();
+			scheduledPool.shutdown();			
 		} catch (Exception e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
@@ -465,6 +481,22 @@ class JHttpServerConnection {
 		while (!socket.isClosed()) {
 			socket.close();
 		}
+	}
+
+	private void sendClientCloseSignal(MySocket socket) throws IOException {
+		byte[] close = new byte[1];
+		log.debug("Sending CLOSE to the client!: " + Arrays.toString(close));
+		close[0] = JHttpTunnel.TUNNEL_CLOSE;
+		socket.write(close, 0, 1);
+		cleanupTables();
+		close(socket);
+		Thread.currentThread().interrupt();
+	}
+
+	private void cleanupTables(){
+                outBoundServerTable.remove(session_id);
+                inBoundServerTable.remove(session_id);
+                clientsTable.remove(session_id);
 	}
 
 	private void closeForwardClient() {		
@@ -482,9 +514,7 @@ class JHttpServerConnection {
 		bserver2 = null;
 		
 		// Remove the client from all hash tables
-		outBoundServerTable.remove(session_id);
-		inBoundServerTable.remove(session_id);
-		clientsTable.remove(session_id);				
+		cleanupTables();
 	}
 
 	private void sendok(MySocket socket) throws IOException {
@@ -507,6 +537,26 @@ class JHttpServerConnection {
 		return_data[1] = (byte) lsb_int;
 		return return_data;
 	}
-	
+
+	private boolean isThreadRunning(String t_id) {
+		boolean ret_value = false;
+		Set<Thread> threadSet = Thread.getAllStackTraces().keySet();
+		Iterator<Thread> threadIt = threadSet.iterator();
+		while (threadIt.hasNext()) {
+			Thread thread = (Thread) threadIt.next();
+			if (thread.getName().equals(t_id))
+				ret_value = true;
+		}
+		return ret_value;
+	}
+
+	private void printThreadRunning() {
+		Set<Thread> threadSet = Thread.getAllStackTraces().keySet();
+		Iterator<Thread> threadIt = threadSet.iterator();
+		while (threadIt.hasNext()) {
+			Thread thread = (Thread) threadIt.next();
+			log.debug("---> Thread Running: " + thread.getName());
+		}
+	}
 }
 

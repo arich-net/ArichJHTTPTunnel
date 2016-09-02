@@ -105,7 +105,7 @@ public class ForwardClient implements Runnable {
 					log.debug("ForwardOUT Length Data: " + data_to_send.length);
 				}
 
-				if (in_server.getSendClose()) {
+				if ((in_server != null) && (in_server.getSendClose() || out_server.getSendClose())) {
 					close();
 				}
 				
@@ -153,15 +153,21 @@ public class ForwardClient implements Runnable {
 	public void close() {
 		try {
 			log.debug("Closing ForwardClient: " + this);
-			(in_server != null) && in_server.setSendClose(true);
+			if (in_server != null)
+				in_server.setSendClose(true);
+			if (out_server != null)
+				out_server.setSendClose(true);
 			// Wait some time for the CLOSE command to be sent by JHttpServerConnection
 			Thread.currentThread().sleep((long) 50);
-
-			while (!forward_socket.isClosed()) {				
-				forward_socket.close();
-			}
-			while (!Thread.currentThread().interrupted()) {
-				Thread.currentThread().interrupt();
+			if (forward_socket != null) {
+				while (!forward_socket.isClosed()) {				
+					forward_socket.close();
+				}
+				/**
+				while (!Thread.currentThread().interrupted()) {
+					Thread.currentThread().interrupt();
+				}
+				*/
 			}
 		} catch (Exception e) {
 			StringWriter errors = new StringWriter();
