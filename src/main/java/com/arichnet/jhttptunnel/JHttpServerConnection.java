@@ -63,6 +63,8 @@ class JHttpServerConnection {
 
 		Hashtable<String, String> http_headers = new Hashtable<String, String>();
 		Hashtable<String, String> http_arguments = new Hashtable<String, String>();
+
+		Thread client_thread = null;
 		
 		log.info("New TCP Connection started");
 
@@ -118,7 +120,7 @@ class JHttpServerConnection {
 				// We start the Thread of ForwardClient
 				forward_client = new ForwardClient();
 				forward_client.setForwardClientData(forward_host, forward_port, session_id, out_server);
-				Thread client_thread = new Thread(forward_client, session_id);
+				client_thread = new Thread(forward_client, session_id);
 				//client_thread.start(); We start the thread when the tunnel gets openned
 
 				// Saving forward_client on the hash
@@ -138,7 +140,8 @@ class JHttpServerConnection {
 				outBoundServerTable.put(session_id, out_server);
 				log.debug("Add server outbound buffer with sid : " + session_id);	
 			}
-						
+
+			Integer remote_port = new Integer(mySocket.getRemotePort());
 			out_server.setForwardClient(forward_client);
 
 			// Create the OutBoundServer Table to for this session id
@@ -416,7 +419,7 @@ class JHttpServerConnection {
 							log.info("Closing the tunnel!!");
 							out_server.setTunnelOpened(false);
 							ret_value = "cleanup";
-							in_server.setSendClose();					
+							in_server.setSendClose(true);					
 							break;
 						}
 					}
@@ -442,7 +445,7 @@ class JHttpServerConnection {
 				e.printStackTrace(new PrintWriter(errors));
 				log.error("POST processing Errors: " + errors.toString());
 				ret_value = "cleanup";
-				in_server.setSendClose();
+				in_server.setSendClose(true);
 				break;
 			}
 
@@ -753,7 +756,7 @@ class JHttpServerConnection {
 		}
 	}
 
-	private void sendClientCloseSignal(InBoundServerSocket in_server, MySocket socket) throws IOException {
+	private void sendClientCloseSignal(InBoundServer in_server, MySocket socket) throws IOException {
 		byte[] close = new byte[1];
 		log.debug("Sending CLOSE to the client!: " + Arrays.toString(close));
 		close[0] = JHttpTunnel.TUNNEL_CLOSE;

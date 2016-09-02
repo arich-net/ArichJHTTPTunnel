@@ -21,7 +21,7 @@ public class InBoundServer extends BoundServer{
 	
 	public InBoundServer(){
 		traffic_tag = 0;
-		table_lock = false;
+		//table_lock = false;
 		server_inbound_table = new Hashtable<Integer, ByteBuffer>();
 		stopFlagSent = false;
 	}
@@ -45,7 +45,7 @@ public class InBoundServer extends BoundServer{
 		byte[] ret_value = null;
 		if (server_inbound_table.isEmpty() || (position == 0))
 			return ret_value;
-		lockTable();
+		//lockTable();
 		try {
 			// Get the lowest traffic tag
 			Integer temp = new Integer(0);
@@ -95,7 +95,7 @@ public class InBoundServer extends BoundServer{
 			e.printStackTrace(new PrintWriter(errors));
 			log.error("InBoundServer Write Error: " + errors.toString());
 		}
-		unlockTable();
+		//unlockTable();
 		return ret_value;
 	}
 	
@@ -117,10 +117,12 @@ public class InBoundServer extends BoundServer{
 		return buf.position();
 	}
 	
+	/** TO be removed
 	public synchronized boolean isLocked(){
 		//log.debug("InBound is locked: " + table_lock);
 		return table_lock;
 	}
+	*/
 	
 	public synchronized boolean hasData(){
 		boolean ret_value = false;		
