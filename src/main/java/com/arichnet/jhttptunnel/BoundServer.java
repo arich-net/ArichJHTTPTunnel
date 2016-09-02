@@ -8,6 +8,8 @@ abstract class BoundServer {
 	private ByteBuffer buffer = ByteBuffer.allocateDirect(JHttpTunnel.BUFFER_LENGTH);
 	private boolean LockWrite;
 	private boolean LockRead;
+	private boolean tunnelOpened = false;
+	private boolean boundLocked = false;
 	private boolean sendClose = false;
 	
 	public void setForwardClient(ForwardClient f) {
@@ -64,11 +66,11 @@ abstract class BoundServer {
 	}
 	
 	public boolean getTunnelOpened() {
-		return forward_client.getTunnelOpened();
+		return tunnelOpened;
 	}
 	
 	public void setTunnelOpened(boolean flag) {
-		forward_client.setTunnelOpened(flag);
+		tunnelOpened = flag;		
 	}
 	
 	public void fcl_message() {
@@ -81,14 +83,14 @@ abstract class BoundServer {
 	
 	public boolean fcl_isClosed() {
 		return forward_client.isClosed();
+	}	
+
+	public void setBoundLocked(boolean flag) {
+		boundLocked = flag;
 	}
-	
-	public void fcl_setGETLocked(boolean flag) {
-		forward_client.setGETlocked(flag);
-	}
-	
-	public boolean fcl_getGETLocked(){
-		return forward_client.getGETlocked();
+
+	public boolean getBoundLocked() {
+		return boundLocked;
 	}
 
 	public void setSendClose(boolean flag) {
@@ -98,5 +100,5 @@ abstract class BoundServer {
 	public boolean getSendClose() {
 		return sendClose;
 	}
-		
+
 }

@@ -11,7 +11,8 @@ public class InBoundServer extends BoundServer{
 	private static final Logger log = Logger.getLogger(InBoundServer.class);
 	private int traffic_tag;
 	private Hashtable<Integer, ByteBuffer> server_inbound_table;
-	private boolean table_lock;
+	private boolean stopFlagSent = false;
+	//private boolean table_lock;
 	
 	public InBoundServer(ForwardClient f){
 		setForwardClient(f);
@@ -22,6 +23,7 @@ public class InBoundServer extends BoundServer{
 		traffic_tag = 0;
 		table_lock = false;
 		server_inbound_table = new Hashtable<Integer, ByteBuffer>();
+		stopFlagSent = false;
 	}
 	
 	public synchronized void writeTable(byte[] data){
@@ -127,7 +129,16 @@ public class InBoundServer extends BoundServer{
 		//log.debug("InBound has data: " + ret_value);
 		return ret_value;
 	}
+
+	public synchronized boolean getStopFlagSent() {
+		return stopFlagSent;
+	}
+
+	public synchronized void setStopFlagSent(boolean flag) {
+		stopFlagSent = flag;
+	}
 	
+	/** TO be removed
 	public void lockTable(){
 		//log.debug("InBound locking");
 		table_lock = true;
@@ -137,4 +148,5 @@ public class InBoundServer extends BoundServer{
 		//log.debug("InBound unlocking");
 		table_lock = false;
 	}
+	*/
 }

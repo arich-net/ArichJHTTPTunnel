@@ -18,8 +18,7 @@ class JHttpServerConnection {
 	private InBoundServer in_server = null;
 	private Hashtable<String, ForwardClient> clientsTable = null;
 	private Hashtable<String, BoundServer> outBoundServerTable = null;
-	private Hashtable<String, BoundServer> inBoundServerTable = null;
-	private List<Integer> postRemotePorts = null;
+	private Hashtable<String, BoundServer> inBoundServerTable = null;	
 	private boolean tunnel_already_opened = false;	
 
 	JHttpServerConnection(Socket s, String h, int p, ForwardClient f) throws IOException {
@@ -38,23 +37,21 @@ class JHttpServerConnection {
 		clientsTable = T;
 	}
 
-	JHttpServerConnection(Socket s, String h, int p, Hashtable T, List<Integer> l) throws IOException {
+	JHttpServerConnection(Socket s, String h, int p, Hashtable T) throws IOException {
 		super();
 		mySocket = new MySocket(s);
 		forward_host = h;
 		forward_port = p;
 		clientsTable = T;
-		postRemotePorts = l;
 	}
 	
 	JHttpServerConnection(Socket s, String h, int p, Hashtable T, 
-						  List l, Hashtable o, Hashtable in) throws IOException {
+						  Hashtable o, Hashtable in) throws IOException {
 		super();
 		mySocket = new MySocket(s);
 		forward_host = h;
 		forward_port = p;
 		clientsTable = T;
-		postRemotePorts = l;
 		outBoundServerTable = o;
 		inBoundServerTable = in;
 	}
@@ -103,52 +100,131 @@ class JHttpServerConnection {
 
 		switch (http_method.toLowerCase()) {
 		case "post":
-			// Create the OutBoundServer Table to reflect this session id
-			if (outBoundServerTable.containsKey(session_id)) {
-				log.debug("Recovering server outbound buffers with sid: " + session_id);
+
+			// Start the client with the Session ID specified
+			log.info("POST method called");	
+			
+			//********************************************************************************************
+			//                     Initiliazing all tables for this SessionID 
+			//********************************************************************************************
+
+			// Create the ForwardClient Table to for this session id
+			if (clientsTable.containsKey(session_id)) {				
+				forward_client = (ForwardClient) clientsTable.get(session_id);
+				log.debug("Forward Client recovered with sid: " + session_id);
+				//forward_client.message();
+
+			} else {
+				// We start the Thread of ForwardClient
+				forward_client = new ForwardClient();
+				forward_client.setForwardClientData(forward_host, forward_port, session_id, out_server);
+				Thread client_thread = new Thread(forward_client, session_id);
+				//client_thread.start(); We start the thread when the tunnel gets openned
+
+				// Saving forward_client on the hash
+				clientsTable.put(session_id, forward_client);
+				log.debug("Adding Fclient to the clients table " + clientsTable.toString());
+
+				// forward_client.message();
+			}
+			
+			// Create the OutBoundServer Table to for this session id
+			if (outBoundServerTable.containsKey(session_id)) {				
 				out_server = (OutBoundServer) outBoundServerTable.get(session_id); 
+				log.debug("Recovered server outbound buffers with sid: " + session_id);
 			}
 			else {				
 				out_server = new OutBoundServer();
 				outBoundServerTable.put(session_id, out_server);
 				log.debug("Add server outbound buffer with sid : " + session_id);	
 			}
-			
-			Integer remote_port = new Integer(mySocket.getRemotePort());
-			postRemotePorts.add(remote_port);
-			log.debug("Remote Ports List: " + Arrays.toString(postRemotePorts.toArray()));			
 						
-			// Get the session id client if it has been initiated
-			if (clientsTable.containsKey(session_id)) {
-				log.debug("Recovering client with sid: " + session_id);
-				forward_client = (ForwardClient) clientsTable.get(session_id);
-				forward_client.message();
-				tunnel_already_opened = true;
-			} else {
-				forward_client = new ForwardClient();
-				forward_client.setForwardClientData(forward_host, forward_port, session_id, out_server);
-				Thread client_thread = new Thread(forward_client, session_id);
-				client_thread.start();
-				// Saving forward_client on the hash
-				clientsTable.put(session_id, forward_client);
-				log.debug("Adding client to the table " + clientsTable.containsKey(session_id));
-				tunnel_already_opened = false;
-				// forward_client.message();
-			}
-			
 			out_server.setForwardClient(forward_client);
-			
-			// Start the client with the Session ID specified
-			log.info("POST called: " + forward_client.toString());			
 
-			processPOST(mySocket, http_headers, http_arguments, tunnel_already_opened, remote_port, out_server);
+			// Create the OutBoundServer Table to for this session id
+			if (inBoundServerTable.containsKey(session_id)) {				
+				in_server = (InBoundServer) inBoundServerTable.get(session_id); 
+				log.debug("Recovered server inbound buffers with sid: " + session_id);
+			}
+			else {				
+				in_server = new InBoundServer();
+				inBoundServerTable.put(session_id, out_server);
+				log.debug("Add server inbound buffer with sid : " + session_id);	
+			}
+						
+			in_server.setForwardClient(forward_client);
+			forward_client.setInboundServer(in_server);
+
+			//********************************************************************************************
+			//                     /Initiliazing all tables for this SessionID 
+			//********************************************************************************************
 			
-			postRemotePorts.remove(remote_port);
-			
+			while(out_server.getBoundLocked()) {
+				// Wait for the bound to be unlocked
+				try {
+					Thread.currentThread().sleep((long) 20);
+				} catch (Exception e) {
+				}
+			}
+
+			out_server.setBoundLocked(true);
+			String result = processPOST(mySocket, http_headers, http_arguments, remote_port, out_server, in_server, client_thread);
+
+			if (result.equals("cleanup")) {
+				// Close the ForwardClient thread
+				while(isThreadRunning(session_id)) {
+					try {
+						killThreadRunning(session_id);
+						Thread.currentThread().sleep((long) 20);
+					} catch (Exception e) {
+					}
+				}
+				while(!in_server.getStopFlagSent()) {
+					try {
+						in_server.setSendClose(true);
+						Thread.currentThread().sleep((long) 20);
+					} catch (Exception e) {
+					}
+				}
+								
+				cleanupTables();
+			}
+
+			out_server.setBoundLocked(false);
 			break;
 
+			// Until here we have finished processing POST calls
+
 		case "get":
-			
+
+			log.info("GET method called");	
+
+			//************************************************************************************
+			//                     Waiting for the following conditions to be met
+			//  - OutBoundServerTable contain the correesponding to its SessionID
+			//  - OutBoundServer have the tunnel opened 
+			//  - InBoundServerTable contain the correesponding to its SessionID
+			//  - InBoundServerTable not Locked by another process
+			//************************************************************************************
+
+			while ((!outBoundServerTable.containsKey(session_id)) && 
+				   (!((OutBoundServer) outBoundServerTable.get(session_id)).getTunnelOpened()) &&
+				   (!inBoundServerTable.containsKey(session_id)) && 
+				   (((InBoundServer) inBoundServerTable.get(session_id)).getBoundLocked())
+				  ) {
+				try {
+					Thread.currentThread().sleep((long) 20);
+				} catch (Exception e) {
+				}
+			}
+
+			in_server = (InBoundServer) inBoundServerTable.get(session_id);
+			out_server = (OutBoundServer) outBoundServerTable.get(session_id);
+
+
+			/** ===========================================================================
+			 * This part is going to be deleted due it is not needed
+			 * 
 			while (!clientsTable.containsKey(session_id)) {
 				// Waiting for the forward client to start
 				try {
@@ -186,8 +262,12 @@ class JHttpServerConnection {
 				} catch (Exception e) {
 				}
 			}
-			
-			processGET(mySocket, http_headers, http_arguments, in_server);
+			** ===========================================================================
+			*/
+
+			in_server.setBoundLocked(true);
+			processGET(mySocket, http_headers, http_arguments, in_server, out_server);
+			in_server.setBoundLocked(false);
 						
 			break;
 
@@ -250,23 +330,131 @@ class JHttpServerConnection {
 		return return_value;
 	}
 
-	private void processPOST(MySocket socket, Hashtable<String, String> http_headers,
-			Hashtable<String, String> http_arguments, boolean tunnel_already_opened,
-			int remote_port, OutBoundServer out_server) {
+	private String processPOST(MySocket socket, Hashtable<String, String> http_headers,
+							Hashtable<String, String> http_arguments, int remote_port, 
+							OutBoundServer out_server, InBoundServer in_server, 
+							Thread client_thread) {
 		
 		byte[] buff = new byte[JHttpTunnel.BUFFER_LENGTH];
-		try {
-			log.info("Starting POST processing: " + out_server.toString());
-			byte controlbyte = 0;
-			int temp = 0;
-			boolean tunnel_opened = tunnel_already_opened;
-			int data_length = 0;
-			boolean keep_request = true;
-			int postTraffic = 0;
-			
-			// Initialise the buffer for this port
-			out_server.initPort(remote_port);
+		byte controlbyte = 0;
+		int temp = 0;
+		int data_length = 0;
+		boolean keep_request = true;
+		int postTraffic = 0;
+		String ret_value = "continue";
 
+		log.info("Starting POST processing: " + out_server.toString());
+			
+		// Initialise the buffer for this port
+
+		out_server.initPort(remote_port);
+
+		while ( keep_request && 
+		        (!out_server.getSendClose())			
+		      ) {
+
+			try {
+				if (out_server.getTunnelOpened()) {
+					if (socket.available() > 0) {
+						// Get the first control byte						
+						temp = socket.read(buff, 0, 1);						
+						postTraffic++;
+						controlbyte = buff[0];
+						log.debug("Control Byte Received: " + controlbyte);
+
+						switch (controlbyte & 0xFF) {
+						case JHttpTunnel.TUNNEL_DATA:
+							temp = socket.read(buff, 0, 2);
+							postTraffic += 2;
+							data_length = ((buff[0] & 0xFF) << 8) + (buff[1] & 0xFF);
+
+							// Check if the size is higher than the limit
+							// Stop get or post after processing this data
+							if ((data_length + postTraffic) > JHttpTunnel.CONTENT_LENGTH) {
+								keep_request = false;
+								log.debug("Traffic Limit Reached: " + (data_length + postTraffic) + 
+										  " | Continue Tunnel Flag: " + keep_request);
+							}
+
+							log.debug("POST Data Length: " + data_length + 
+									  " | Continue Tunnel Flag: " + keep_request);
+
+							do {
+								if (out_server.getBufferPosition(remote_port) <= 0) {
+									if (data_length > JHttpTunnel.BUFFER_LENGTH){
+										socket.read(buff, 0, JHttpTunnel.BUFFER_LENGTH);
+										postTraffic += JHttpTunnel.BUFFER_LENGTH;
+										data_length -= JHttpTunnel.BUFFER_LENGTH;
+										out_server.writeData(buff, remote_port);			
+									}
+									else {
+										socket.read(buff, 0, data_length);
+										postTraffic += data_length;
+										out_server.writeData(Arrays.copyOfRange(buff, 0, data_length),remote_port);
+										data_length = 0;
+									}
+									
+								}
+
+							} while (data_length > 0);
+							// Print the status of the buffers
+							log.debug("* Buff Status: " + out_server);							
+							break;
+
+						case JHttpTunnel.TUNNEL_PAD1:
+							log.info("Server PAD received");							
+							break;
+
+						case JHttpTunnel.TUNNEL_DISCONNECT:
+							keep_request = false;
+							log.info("Disconnecting the tunnel!! ");
+							ret_value = "continue";
+							break;
+
+						case JHttpTunnel.TUNNEL_CLOSE:
+							keep_request = false;
+							log.info("Closing the tunnel!!");
+							out_server.setTunnelOpened(false);
+							ret_value = "cleanup";
+							in_server.setSendClose();					
+							break;
+						}
+					}
+
+				} else {
+					if (socket.available() > 0) {
+						temp = socket.read(buff, 0, 1);					
+						postTraffic++;
+						controlbyte = buff[0];
+						log.debug("Tunnel not yet Opened, Control Byte Received: " + controlbyte);					
+
+						if ((controlbyte & 0xFF) == JHttpTunnel.TUNNEL_OPEN) {
+							temp = socket.read(buff, 0, 3);
+							postTraffic += 3;
+							out_server.setTunnelOpened(true);
+							log.info("Tunnel Opened, Starting ForwardClient Thread");
+							client_thread.start();
+						}
+					}
+				}
+			} catch (Exception e) {
+				StringWriter errors = new StringWriter();
+				e.printStackTrace(new PrintWriter(errors));
+				log.error("POST processing Errors: " + errors.toString());
+				ret_value = "cleanup";
+				in_server.setSendClose();
+				break;
+			}
+
+			Thread.currentThread().sleep((long) 20); // Delay for the while loop
+
+		}
+
+		return ret_value;
+
+
+		/** This part of the development is for removal
+		try {
 			do {
 				if (out_server.getTunnelOpened()) {										
 					if (socket.available() > 0) {
@@ -345,7 +533,6 @@ class JHttpServerConnection {
 						temp = socket.read(buff, 0, 3);
 						postTraffic += 3;
 						out_server.setTunnelOpened(true);
-						//tunnel_opened = true;
 						log.info("Openning http tunnel");
 						
 					}
@@ -367,18 +554,100 @@ class JHttpServerConnection {
 			e.printStackTrace(new PrintWriter(errors));
 			log.error("POST processing Errors: " + errors.toString());
 		}
+		*/
+
 	}
 
 	private void processGET(MySocket socket, Hashtable<String, String> http_headers,
-			Hashtable<String, String> http_arguments, InBoundServer in_server) {
+			Hashtable<String, String> http_arguments, InBoundServer in_server, 
+			OutBoundServer out_server) {
 				
 		byte[] buff = new byte[10240];
 		byte[] data_length = new byte[2];
 		int getTraffic = 0;
 		boolean keep_request = true;
 		int position = 0;
-		int correction = 0;
+		//int correction = 0;
 		ScheduledExecutorService scheduledPool = Executors.newScheduledThreadPool(4);
+
+		// =============================================================
+		// We initialise the scheduler to send PADs
+
+		final MySocket fsocket = socket;
+		final BoundServer fin_server = in_server;
+		Runnable runnableSendPad = new Runnable() {
+			byte[] pad = new byte[1];				
+			@Override
+			public void run() {
+				pad[0] = JHttpTunnel.TUNNEL_PAD1;
+				try {
+				    fsocket.write(pad, 0, 1);
+				    log.debug("Server PAD sent");
+				    fin_server.fcl_message();
+				} catch (Exception e){
+					StringWriter errors = new StringWriter();
+					e.printStackTrace(new PrintWriter(errors));
+					log.error("Error sending PAD" + errors.toString());
+				}
+			}
+		};
+		scheduledPool.scheduleAtFixedRate(runnableSendPad, 5, 5, TimeUnit.SECONDS);
+		// =============================================================
+
+		while (keep_request &&
+			   !(in_server.getSendClose())
+			  ) {
+
+			try {
+				log.info("Starting GET processing: " + forward_client.toString());
+				sendok(socket);
+
+				if ((in_server.nextBufferData() + getTraffic + 3) > (JHttpTunnel.CONTENT_LENGTH - 3)) {
+						position = JHttpTunnel.CONTENT_LENGTH - getTraffic - 3;
+						keep_request = false;
+				}
+				else {
+					position = in_server.nextBufferData();
+				}
+					
+				byte[] tmp = in_server.readTable(position);
+				buff[0] = JHttpTunnel.TUNNEL_DATA;
+				socket.write(buff, 0, 1);
+				getTraffic++;
+
+				data_length = getDataLength(tmp.length);
+				socket.write(data_length, 0, 2);
+				getTraffic += 2;
+
+				socket.write(tmp, 0, tmp.length);
+				getTraffic += tmp.length;
+					
+				log.debug("GET Data Traffic: " + getTraffic + " | Length: " + 
+				          tmp.length + " | Continue Tunnel Flag: " + keep_request);
+
+			} catch (Exception e) {
+				StringWriter errors = new StringWriter();
+				e.printStackTrace(new PrintWriter(errors));
+				log.error("GET Processing Errors: " + errors.toString());
+				out_server.setSendClose(true);
+				in_server.setSendClose(true);
+				break;
+			}
+		}
+
+		if (!keep_request) {
+			buff[0] = JHttpTunnel.TUNNEL_DISCONNECT;
+			socket.write(buff, 0, 1);
+			getTraffic++;
+		}
+
+		if (in_server.getSendClose()) {
+			log.debug("Closing the socket and sending CLOSE signal");
+			sendClientCloseSignal(in_server, socket);
+			getTraffic++;
+		}
+
+		/** TO BE REMOVED
 
 		try {
 			in_server.fcl_setGETLocked(true);
@@ -474,6 +743,7 @@ class JHttpServerConnection {
 			e.printStackTrace(new PrintWriter(errors));
 			log.error("GET Processing Errors: " + errors.toString());
 		}
+		*/
 	}
 
 	private void close(MySocket socket) {
@@ -483,20 +753,27 @@ class JHttpServerConnection {
 		}
 	}
 
-	private void sendClientCloseSignal(MySocket socket) throws IOException {
+	private void sendClientCloseSignal(InBoundServerSocket in_server, MySocket socket) throws IOException {
 		byte[] close = new byte[1];
 		log.debug("Sending CLOSE to the client!: " + Arrays.toString(close));
 		close[0] = JHttpTunnel.TUNNEL_CLOSE;
 		socket.write(close, 0, 1);
 		cleanupTables();
 		close(socket);
-		Thread.currentThread().interrupt();
+		in_server.setStopFlagSent(true);	
 	}
 
-	private void cleanupTables(){
-                outBoundServerTable.remove(session_id);
-                inBoundServerTable.remove(session_id);
-                clientsTable.remove(session_id);
+	private void cleanupTables() {
+		(BoundServer) out_server = outBoundServerTable.get(session_id);
+		(BoundServer) in_server = inBoundServerTable.get(session_id);
+		(ForwardClient) client = clientsTable.get(session_id);
+		out_server = null;
+		in_server = null;
+		client = null;	
+		outBoundServerTable.remove(session_id);
+		inBoundServerTable.remove(session_id);
+		clientsTable.remove(session_id);
+		log.debug("Cleaning up SessionID [" + session_id + "] tables");
 	}
 
 	private void closeForwardClient() {		
@@ -548,6 +825,19 @@ class JHttpServerConnection {
 				ret_value = true;
 		}
 		return ret_value;
+	}
+
+	private void killThreadRunning(String t_id) {		
+		Set<Thread> threadSet = Thread.getAllStackTraces().keySet();
+		Iterator<Thread> threadIt = threadSet.iterator();
+		while (threadIt.hasNext()) {
+			Thread thread = (Thread) threadIt.next();
+			if (thread.getName().equals(t_id)) {
+				while (thread.isAlive()) {
+					thread.interrupt();
+				}
+			}			
+		}
 	}
 
 	private void printThreadRunning() {

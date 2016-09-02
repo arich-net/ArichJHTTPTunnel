@@ -22,7 +22,10 @@ public class ForwardClient implements Runnable {
 	boolean GETlocked = false;
 	boolean POSTlocked = false;
 
+	/** To remove
 	boolean tunnel_opened = false;
+	*/
+
 	//DateFormat date_format = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
 	private OutBoundServer out_server = null;
 	private InBoundServer in_server = null;
@@ -163,7 +166,7 @@ public class ForwardClient implements Runnable {
 				while (!forward_socket.isClosed()) {				
 					forward_socket.close();
 				}
-				/**
+				/** Thi is to remove
 				while (!Thread.currentThread().interrupted()) {
 					Thread.currentThread().interrupt();
 				}
@@ -176,6 +179,7 @@ public class ForwardClient implements Runnable {
 		}
 	}
 
+	/** To remove
 	public boolean getGETlocked() {		
 		return GETlocked;
 	}
@@ -199,6 +203,7 @@ public class ForwardClient implements Runnable {
 	public boolean getTunnelOpened(){
 		return tunnel_opened;
 	}
+	*/
 	
 	public void setInboundServer(InBoundServer in) {
 		in_server = in;

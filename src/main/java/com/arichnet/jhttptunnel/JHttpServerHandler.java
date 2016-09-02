@@ -21,12 +21,11 @@ public class JHttpServerHandler implements Runnable {
 	private Hashtable<String, BoundServer> outBoundServerTable;
 	private Hashtable<String, BoundServer> inBoundServerTable;
 	
-	public JHttpServerHandler(Socket s, String h, int p, Hashtable T, List l, Hashtable o, Hashtable i){
+	public JHttpServerHandler(Socket s, String h, int p, Hashtable T, Hashtable o, Hashtable i){
 		socket = s;
 		host = h;
 		port = p;
 		clientsTable = T;
-		postRemotePorts = l;
 		outBoundServerTable = o;
 		inBoundServerTable = i;
 	}			
@@ -34,7 +33,7 @@ public class JHttpServerHandler implements Runnable {
 	public void run() {
 		try {
 			(new JHttpServerConnection(socket, host, port, clientsTable, 
-					postRemotePorts, outBoundServerTable, inBoundServerTable)).newsocket();
+									   outBoundServerTable, inBoundServerTable)).newsocket();
 			log.info("Server connection closed!!!!!");
 
 		} catch (Exception e) {
