@@ -84,8 +84,8 @@ public class ForwardClient implements Runnable {
 			message();
 
 			while (forward_socket.isConnected() && !forward_socket.isClosed()) {
-				if ((in_server != null) && (forward_in.available() > 0) &&
-					(!in_server.isLocked())) {					
+				if ((in_server != null) && 
+					(forward_in.available() > 0)) {					
 					//in_server.lockTable();
 					log.debug("Forward Client data available: " + forward_in.available());
 					if (forward_in.available() >= 10240) {
@@ -212,6 +212,15 @@ public class ForwardClient implements Runnable {
 	
 	public InBoundServer getInboundServer(){
 		return in_server;
+	}
+	
+	public void setOutboundServer(OutBoundServer out) {
+		out_server = out;
+		out_server.setSendClose(false);
+	}
+	
+	public OutBoundServer getOutboundServer(){
+		return out_server;
 	}
 
 	public void message() {

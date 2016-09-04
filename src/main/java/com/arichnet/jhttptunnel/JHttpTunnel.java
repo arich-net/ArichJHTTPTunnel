@@ -29,7 +29,7 @@
 
 package com.arichnet.jhttptunnel;
 
-class JHttpTunnel {
+public class JHttpTunnel {
 	static final byte TUNNEL_OPEN = 1;
 	static final byte TUNNEL_DATA = 2;
 	static final byte TUNNEL_PADDING = 3;

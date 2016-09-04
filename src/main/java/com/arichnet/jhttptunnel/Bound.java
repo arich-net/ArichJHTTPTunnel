@@ -31,7 +31,7 @@ package com.arichnet.jhttptunnel;
 
 import java.io.*;
 
-abstract class Bound {
+abstract public class Bound {
 	private String host = null;
 	private int port = 80;
 	private Proxy proxy = null;

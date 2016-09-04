@@ -29,7 +29,7 @@
 
 package com.arichnet.jhttptunnel;
 
-class Proxy {
+public class Proxy {
 	String host;
 	int port;
 	String auth_name = null;

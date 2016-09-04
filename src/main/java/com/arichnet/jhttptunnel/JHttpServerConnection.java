@@ -36,14 +36,6 @@ class JHttpServerConnection {
 		forward_port = p;
 		clientsTable = T;
 	}
-
-	JHttpServerConnection(Socket s, String h, int p, Hashtable T) throws IOException {
-		super();
-		mySocket = new MySocket(s);
-		forward_host = h;
-		forward_port = p;
-		clientsTable = T;
-	}
 	
 	JHttpServerConnection(Socket s, String h, int p, Hashtable T, 
 						  Hashtable o, Hashtable in) throws IOException {
@@ -143,6 +135,7 @@ class JHttpServerConnection {
 
 			Integer remote_port = new Integer(mySocket.getRemotePort());
 			out_server.setForwardClient(forward_client);
+			forward_client.setOutboundServer(out_server);
 
 			// Create the OutBoundServer Table to for this session id
 			if (inBoundServerTable.containsKey(session_id)) {				
@@ -151,7 +144,7 @@ class JHttpServerConnection {
 			}
 			else {				
 				in_server = new InBoundServer();
-				inBoundServerTable.put(session_id, out_server);
+				inBoundServerTable.put(session_id, in_server);
 				log.debug("Add server inbound buffer with sid : " + session_id);	
 			}
 						
@@ -194,6 +187,7 @@ class JHttpServerConnection {
 			}
 
 			out_server.setBoundLocked(false);
+			close(mySocket);
 			break;
 
 			// Until here we have finished processing POST calls
@@ -204,26 +198,43 @@ class JHttpServerConnection {
 
 			//************************************************************************************
 			//                     Waiting for the following conditions to be met
-			//  - OutBoundServerTable contain the correesponding to its SessionID
+			//  - OutBoundServerTable contain the corresponding to its SessionID
 			//  - OutBoundServer have the tunnel opened 
-			//  - InBoundServerTable contain the correesponding to its SessionID
+			//  - InBoundServerTable contain the corresponding to its SessionID
 			//  - InBoundServerTable not Locked by another process
 			//************************************************************************************
 
-			while ((!outBoundServerTable.containsKey(session_id)) && 
-				   (!((OutBoundServer) outBoundServerTable.get(session_id)).getTunnelOpened()) &&
-				   (!inBoundServerTable.containsKey(session_id)) && 
-				   (((InBoundServer) inBoundServerTable.get(session_id)).getBoundLocked())
+			while ((!outBoundServerTable.containsKey(session_id)) ||
+				   (outBoundServerTable.get(session_id) == null) ||
+				   (!inBoundServerTable.containsKey(session_id)) ||
+				   (inBoundServerTable.get(session_id) == null) ||
+				   (!clientsTable.containsKey(session_id)) ||
+				   (clientsTable.get(session_id) == null)
 				  ) {
+					
+				try {
+					Thread.currentThread().sleep((long) 20);
+				} catch (Exception e) {
+				}
+				
+			}
+			
+			log.debug("Recovered In Table: " + inBoundServerTable.toString());
+			log.debug("Recovered Out Table: " + outBoundServerTable.toString());
+			log.debug("Recovered Client Table: " + clientsTable.toString());
+			
+			in_server = (InBoundServer) inBoundServerTable.get(session_id);
+			out_server = (OutBoundServer) outBoundServerTable.get(session_id);
+			forward_client = (ForwardClient) clientsTable.get(session_id); 
+			
+			while (!out_server.getTunnelOpened() ||
+				   in_server.getBoundLocked()) {
 				try {
 					Thread.currentThread().sleep((long) 20);
 				} catch (Exception e) {
 				}
 			}
-
-			in_server = (InBoundServer) inBoundServerTable.get(session_id);
-			out_server = (OutBoundServer) outBoundServerTable.get(session_id);
-
+				  
 
 			/** ===========================================================================
 			 * This part is going to be deleted due it is not needed
@@ -268,10 +279,11 @@ class JHttpServerConnection {
 			** ===========================================================================
 			*/
 
-			in_server.setBoundLocked(true);
+			in_server.setBoundLocked(true	);
 			processGET(mySocket, http_headers, http_arguments, in_server, out_server);
 			in_server.setBoundLocked(false);
-						
+			close(mySocket);
+			
 			break;
 
 		case "head":
@@ -448,9 +460,11 @@ class JHttpServerConnection {
 				in_server.setSendClose(true);
 				break;
 			}
-
-			Thread.currentThread().sleep((long) 20); // Delay for the while loop
-
+			
+			try {
+				Thread.currentThread().sleep((long) 20); // Delay for the while loop
+			} catch (InterruptedException e) {
+			}
 		}
 
 		return ret_value;
@@ -597,58 +611,71 @@ class JHttpServerConnection {
 		scheduledPool.scheduleAtFixedRate(runnableSendPad, 5, 5, TimeUnit.SECONDS);
 		// =============================================================
 
-		while (keep_request &&
-			   !(in_server.getSendClose())
-			  ) {
-
-			try {
-				log.info("Starting GET processing: " + forward_client.toString());
-				sendok(socket);
-
-				if ((in_server.nextBufferData() + getTraffic + 3) > (JHttpTunnel.CONTENT_LENGTH - 3)) {
-						position = JHttpTunnel.CONTENT_LENGTH - getTraffic - 3;
-						keep_request = false;
-				}
-				else {
-					position = in_server.nextBufferData();
-				}
+		log.info("Starting GET processing: " + forward_client.toString());
+		
+		try {		
+			sendok(socket);
+		
+			while (keep_request &&
+				   !(in_server.getSendClose())
+				  ) {								
 					
-				byte[] tmp = in_server.readTable(position);
-				buff[0] = JHttpTunnel.TUNNEL_DATA;
-				socket.write(buff, 0, 1);
-				getTraffic++;
+				if (in_server.nextBufferData() != 0) {
 
-				data_length = getDataLength(tmp.length);
-				socket.write(data_length, 0, 2);
-				getTraffic += 2;
-
-				socket.write(tmp, 0, tmp.length);
-				getTraffic += tmp.length;
-					
-				log.debug("GET Data Traffic: " + getTraffic + " | Length: " + 
-				          tmp.length + " | Continue Tunnel Flag: " + keep_request);
-
-			} catch (Exception e) {
-				StringWriter errors = new StringWriter();
-				e.printStackTrace(new PrintWriter(errors));
-				log.error("GET Processing Errors: " + errors.toString());
-				out_server.setSendClose(true);
-				in_server.setSendClose(true);
-				break;
+					if ((in_server.nextBufferData() + getTraffic + 3) > (JHttpTunnel.CONTENT_LENGTH - 3)) {
+							position = JHttpTunnel.CONTENT_LENGTH - getTraffic - 3;
+							keep_request = false;
+					}
+					else {
+						position = in_server.nextBufferData();
+					}
+						
+					byte[] tmp = in_server.readTable(position);
+					buff[0] = JHttpTunnel.TUNNEL_DATA;
+					socket.write(buff, 0, 1);
+					getTraffic++;
+	
+					//log.debug("Getting byte length of: " + Arrays.toString(tmp));
+					data_length = getDataLength(tmp.length);
+					socket.write(data_length, 0, 2);
+					getTraffic += 2;
+	
+					socket.write(tmp, 0, tmp.length);
+					getTraffic += tmp.length;
+						
+					log.debug("GET Data Traffic: " + getTraffic + " | Length: " + 
+					          tmp.length + " | Continue Tunnel Flag: " + keep_request);
+				}
+				try {
+					Thread.currentThread().sleep((long) 20); // Delay for the while loop
+				}
+				catch (InterruptedException e) {
+					throw e;
+				}
 			}
-		}
-
-		if (!keep_request) {
-			buff[0] = JHttpTunnel.TUNNEL_DISCONNECT;
-			socket.write(buff, 0, 1);
-			getTraffic++;
-		}
-
-		if (in_server.getSendClose()) {
-			log.debug("Closing the socket and sending CLOSE signal");
-			sendClientCloseSignal(in_server, socket);
-			getTraffic++;
-		}
+		
+			if (!keep_request) {
+				buff[0] = JHttpTunnel.TUNNEL_DISCONNECT;			
+				socket.write(buff, 0, 1);					
+				getTraffic++;
+			}
+	
+			if (in_server.getSendClose()) {
+				log.debug("Closing the socket and sending CLOSE signal");
+				sendClientCloseSignal(in_server, socket);
+				getTraffic++;
+			}
+			// Stoping the scheduled thread
+			
+			scheduledPool.shutdown();
+			log.info("About to CLOSE GET socket... ");
+			
+		} catch (Exception e) {
+			StringWriter errors = new StringWriter();
+			e.printStackTrace(new PrintWriter(errors));
+			log.error("GET Processing Errors: " + errors.toString());
+		}	
+		
 
 		/** TO BE REMOVED
 
@@ -767,9 +794,9 @@ class JHttpServerConnection {
 	}
 
 	private void cleanupTables() {
-		(BoundServer) out_server = outBoundServerTable.get(session_id);
-		(BoundServer) in_server = inBoundServerTable.get(session_id);
-		(ForwardClient) client = clientsTable.get(session_id);
+		BoundServer out_server = (BoundServer) outBoundServerTable.get(session_id);
+		BoundServer in_server = (BoundServer) inBoundServerTable.get(session_id);
+		ForwardClient client = (ForwardClient) clientsTable.get(session_id);
 		out_server = null;
 		in_server = null;
 		client = null;	

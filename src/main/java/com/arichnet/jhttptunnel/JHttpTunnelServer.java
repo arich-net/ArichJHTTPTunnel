@@ -52,9 +52,7 @@ public class JHttpTunnelServer extends Thread {
 	//Initialise inBoundServerTable linked to SESSIONID
 	private Hashtable<String, BoundServer> inBoundServerTable;
 	
-	private final ExecutorService pool;
-	
-	private List<Integer> postRemotePorts = new ArrayList<Integer>(); 
+	private final ExecutorService pool;		
 
 	JHttpTunnelServer(int port, int poolSize) {
 		super();
@@ -108,12 +106,11 @@ public class JHttpTunnelServer extends Thread {
 			final int _port = forward_port;
 			// final ForwardClient _forwardclient = forward_client;
 			final Hashtable<String, ForwardClient> _clientsTable = clientsTable;
-			final List<Integer> _postRemotePorts = postRemotePorts;
 			final Hashtable<String, BoundServer> _outBoundServerTable = outBoundServerTable;
 			final Hashtable<String, BoundServer> _inBoundServerTable = inBoundServerTable;			
 						
 			pool.execute(new JHttpServerHandler(_socket, _host, _port, _clientsTable, 
-							_postRemotePorts, _outBoundServerTable, _inBoundServerTable));			
+												_outBoundServerTable, _inBoundServerTable));			
 						
 		}
 	}

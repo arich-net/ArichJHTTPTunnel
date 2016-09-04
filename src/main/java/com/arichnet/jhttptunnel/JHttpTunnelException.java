@@ -30,6 +30,7 @@
 package com.arichnet.jhttptunnel;
 
 public class JHttpTunnelException extends java.io.IOException {
+	
 	public JHttpTunnelException() {
 		super();
 	}
