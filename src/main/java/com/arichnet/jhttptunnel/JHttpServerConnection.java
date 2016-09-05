@@ -165,8 +165,9 @@ class JHttpServerConnection {
 
 			out_server.setBoundLocked(true);
 			String result = processPOST(mySocket, http_headers, http_arguments, remote_port, out_server, in_server, client_thread);
+			log.debug("Result from POST processing: " + result);
 
-			if (result.equals("cleanup")) {
+			if (result.equals("cleanup")) {				
 				// Close the ForwardClient thread
 				while(isThreadRunning(session_id)) {
 					try {
@@ -182,7 +183,7 @@ class JHttpServerConnection {
 					} catch (Exception e) {
 					}
 				}
-								
+							
 				cleanupTables();
 			}
 
@@ -364,11 +365,12 @@ class JHttpServerConnection {
 
 		out_server.initPort(remote_port);
 
-		while ( keep_request && 
-		        (!out_server.getSendClose())			
-		      ) {
+		try {
 
-			try {
+			while ( keep_request && 
+			        (!out_server.getSendClose())			
+			      ) {
+			
 				if (out_server.getTunnelOpened()) {
 					if (socket.available() > 0) {
 						// Get the first control byte						
@@ -452,20 +454,23 @@ class JHttpServerConnection {
 						}
 					}
 				}
-			} catch (Exception e) {
-				StringWriter errors = new StringWriter();
-				e.printStackTrace(new PrintWriter(errors));
-				log.error("POST processing Errors: " + errors.toString());
-				ret_value = "cleanup";
-				in_server.setSendClose(true);
-				break;
-			}
 			
-			try {
 				Thread.currentThread().sleep((long) 20); // Delay for the while loop
-			} catch (InterruptedException e) {
+			
 			}
-		}
+
+		} catch (InterruptedException e) {
+			throw e;
+		} catch (Exception e) {
+			StringWriter errors = new StringWriter();
+			e.printStackTrace(new PrintWriter(errors));
+			log.error("POST processing Errors: " + errors.toString());
+			ret_value = "cleanup";
+			in_server.setSendClose(true);
+		} 
+
+		log.info("About to CLOSE POST socket... ");
+		out_server.removePort(remote_port);
 
 		return ret_value;
 
