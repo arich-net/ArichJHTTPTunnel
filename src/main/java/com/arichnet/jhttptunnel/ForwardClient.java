@@ -161,7 +161,7 @@ public class ForwardClient implements Runnable {
 			if (out_server != null)
 				out_server.setSendClose(true);
 			// Wait some time for the CLOSE command to be sent by JHttpServerConnection
-			Thread.currentThread().sleep((long) 50);
+			//Thread.currentThread().sleep((long) 50);
 			if (forward_socket != null) {
 				while (!forward_socket.isClosed()) {				
 					forward_socket.close();

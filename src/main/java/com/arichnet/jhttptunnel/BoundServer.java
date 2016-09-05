@@ -2,8 +2,10 @@ package com.arichnet.jhttptunnel;
 
 import java.util.*;
 import java.nio.*;
+import org.apache.log4j.*;
 
-abstract class BoundServer {	
+abstract class BoundServer {
+	private static final Logger log = Logger.getLogger(BoundServer.class);	
 	private ForwardClient forward_client;
 	private ByteBuffer buffer = ByteBuffer.allocateDirect(JHttpTunnel.BUFFER_LENGTH);
 	private boolean LockWrite;
@@ -94,6 +96,7 @@ abstract class BoundServer {
 	}
 
 	public void setSendClose(boolean flag) {
+		log.debug("CLOSE signal received...");
 		sendClose = flag;
 	}
 

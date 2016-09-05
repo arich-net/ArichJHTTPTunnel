@@ -154,7 +154,9 @@ class JHttpServerConnection {
 			//********************************************************************************************
 			//                     /Initiliazing all tables for this SessionID 
 			//********************************************************************************************
-			
+		
+			/**
+			log.debug("Waiting for the last socket to finish: (" + remote_port + ")");	
 			while(out_server.getBoundLocked()) {
 				// Wait for the bound to be unlocked
 				try {
@@ -162,8 +164,10 @@ class JHttpServerConnection {
 				} catch (Exception e) {
 				}
 			}
+			log.debug("Last socket released: (" + remote_port + ")");
+			*/
 
-			out_server.setBoundLocked(true);
+			//out_server.setBoundLocked(true);
 			String result = processPOST(mySocket, http_headers, http_arguments, remote_port, out_server, in_server, client_thread);
 			log.debug("Result from POST processing: " + result);
 
@@ -187,7 +191,7 @@ class JHttpServerConnection {
 				cleanupTables();
 			}
 
-			out_server.setBoundLocked(false);
+			//out_server.setBoundLocked(false);
 			close(mySocket);
 			break;
 
@@ -459,8 +463,13 @@ class JHttpServerConnection {
 			
 			}
 
-		} catch (InterruptedException e) {
-			throw e;
+			if (out_server.getSendClose()) {
+					ret_value = "cleanup";
+					in_server.setSendClose(true);
+			}
+
+		//} catch (InterruptedException e) {
+		//	throw e;
 		} catch (Exception e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
@@ -597,6 +606,7 @@ class JHttpServerConnection {
 
 		final MySocket fsocket = socket;
 		final BoundServer fin_server = in_server;
+		final BoundServer fout_server = out_server;
 		Runnable runnableSendPad = new Runnable() {
 			byte[] pad = new byte[1];				
 			@Override
@@ -605,11 +615,17 @@ class JHttpServerConnection {
 				try {
 				    fsocket.write(pad, 0, 1);
 				    log.debug("Server PAD sent");
-				    fin_server.fcl_message();
+				    //fin_server.fcl_message();
+				} catch (SocketException e){
+					fin_server.setSendClose(true);
+					fout_server.setSendClose(true);
+					StringWriter errors = new StringWriter();
+					e.printStackTrace(new PrintWriter(errors));
+					log.error("Socket Exception Sending PAD: " + errors.toString());
 				} catch (Exception e){
 					StringWriter errors = new StringWriter();
 					e.printStackTrace(new PrintWriter(errors));
-					log.error("Error sending PAD" + errors.toString());
+					log.error("Error sending PAD: " + errors.toString());
 				}
 			}
 		};
@@ -676,6 +692,8 @@ class JHttpServerConnection {
 			log.info("About to CLOSE GET socket... ");
 			
 		} catch (Exception e) {
+			scheduledPool.shutdown();
+			out_server.setSendClose(true);
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
 			log.error("GET Processing Errors: " + errors.toString());
@@ -791,11 +809,11 @@ class JHttpServerConnection {
 	private void sendClientCloseSignal(InBoundServer in_server, MySocket socket) throws IOException {
 		byte[] close = new byte[1];
 		log.debug("Sending CLOSE to the client!: " + Arrays.toString(close));
+		in_server.setStopFlagSent(true);	
 		close[0] = JHttpTunnel.TUNNEL_CLOSE;
 		socket.write(close, 0, 1);
-		cleanupTables();
+		//cleanupTables();
 		close(socket);
-		in_server.setStopFlagSent(true);	
 	}
 
 	private void cleanupTables() {
