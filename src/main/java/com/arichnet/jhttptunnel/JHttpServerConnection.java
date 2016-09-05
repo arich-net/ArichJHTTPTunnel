@@ -97,6 +97,10 @@ class JHttpServerConnection {
 
 			// Start the client with the Session ID specified
 			log.info("POST method called");	
+
+			// Renaming the Thread to ease clening-up tasks
+			String th_name = Thread.currentThread().getName();
+			Thread.currentThread().setName(th_name + "-post-" + session_id);
 			
 			//********************************************************************************************
 			//                     Initiliazing all tables for this SessionID 
@@ -155,7 +159,7 @@ class JHttpServerConnection {
 			//                     /Initiliazing all tables for this SessionID 
 			//********************************************************************************************
 		
-			/**
+			/** TO BE REMOVED
 			log.debug("Waiting for the last socket to finish: (" + remote_port + ")");	
 			while(out_server.getBoundLocked()) {
 				// Wait for the bound to be unlocked
@@ -199,7 +203,11 @@ class JHttpServerConnection {
 
 		case "get":
 
-			log.info("GET method called");	
+			log.info("GET method called");
+			
+			// Renaming the Thread to ease clening-up tasks
+			String th_name = Thread.currentThread().getName();
+			Thread.currentThread().setName(th_name + "-get-" + session_id);
 
 			//************************************************************************************
 			//                     Waiting for the following conditions to be met
