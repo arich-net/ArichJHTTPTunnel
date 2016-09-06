@@ -52,6 +52,7 @@ class JHttpServerConnection {
 		String socket_readline = "";
 		String http_method = "";
 		String temp = "";
+		String th_name = "";
 
 		Hashtable<String, String> http_headers = new Hashtable<String, String>();
 		Hashtable<String, String> http_arguments = new Hashtable<String, String>();
@@ -99,8 +100,11 @@ class JHttpServerConnection {
 			log.info("POST method called");	
 
 			// Renaming the Thread to ease clening-up tasks
-			String th_name = Thread.currentThread().getName();
-			Thread.currentThread().setName(th_name + "-post-" + session_id);
+			th_name = Thread.currentThread().getName();
+			if (th_name.contains(session_id))
+				Thread.currentThread().setName(th_name.split(":")[0] + ":" + session_id + "-post");
+			else
+				Thread.currentThread().setName(th_name + ":" + session_id + "-post");
 			
 			//********************************************************************************************
 			//                     Initiliazing all tables for this SessionID 
@@ -175,18 +179,19 @@ class JHttpServerConnection {
 			String result = processPOST(mySocket, http_headers, http_arguments, remote_port, out_server, in_server, client_thread);
 			log.debug("Result from POST processing: " + result);
 
-			if (result.equals("cleanup")) {				
-				// Close the ForwardClient thread
-				while(isThreadRunning(session_id)) {
+			if (result.equals("cleanup")) {
+				// Wait for the InBoundServer to send the CLOSE flag	
+				while(!in_server.getStopFlagSent()) {
 					try {
-						killThreadRunning(session_id);
+						in_server.setSendClose(true);
 						Thread.currentThread().sleep((long) 20);
 					} catch (Exception e) {
 					}
 				}
-				while(!in_server.getStopFlagSent()) {
+				// Close any Thread with session_id reference
+				while(anyThreadRunning(session_id)) {
 					try {
-						in_server.setSendClose(true);
+						killThreadRunning(session_id);
 						Thread.currentThread().sleep((long) 20);
 					} catch (Exception e) {
 					}
@@ -206,8 +211,11 @@ class JHttpServerConnection {
 			log.info("GET method called");
 			
 			// Renaming the Thread to ease clening-up tasks
-			String th_name = Thread.currentThread().getName();
-			Thread.currentThread().setName(th_name + "-get-" + session_id);
+			th_name = Thread.currentThread().getName();
+			if (th_name.contains(session_id))
+				Thread.currentThread().setName(th_name.split(":")[0] + ":" + session_id + "-get");
+			else
+				Thread.currentThread().setName(th_name + ":" + session_id + "-get");
 
 			//************************************************************************************
 			//                     Waiting for the following conditions to be met
@@ -876,13 +884,13 @@ class JHttpServerConnection {
 		return return_data;
 	}
 
-	private boolean isThreadRunning(String t_id) {
+	private boolean anyThreadRunning(String t_id) {
 		boolean ret_value = false;
 		Set<Thread> threadSet = Thread.getAllStackTraces().keySet();
 		Iterator<Thread> threadIt = threadSet.iterator();
 		while (threadIt.hasNext()) {
 			Thread thread = (Thread) threadIt.next();
-			if (thread.getName().equals(t_id))
+			if (thread.getName().contains(t_id))
 				ret_value = true;
 		}
 		return ret_value;
@@ -893,8 +901,9 @@ class JHttpServerConnection {
 		Iterator<Thread> threadIt = threadSet.iterator();
 		while (threadIt.hasNext()) {
 			Thread thread = (Thread) threadIt.next();
-			if (thread.getName().equals(t_id)) {
+			if (thread.getName().contains(t_id)) {
 				while (thread.isAlive()) {
+					log.debug("Killing thread: " + thread.getName());
 					thread.interrupt();
 				}
 			}			
