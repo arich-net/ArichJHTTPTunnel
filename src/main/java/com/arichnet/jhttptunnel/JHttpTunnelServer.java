@@ -29,6 +29,7 @@ import java.net.*;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.apache.log4j.Logger;
 
 public class JHttpTunnelServer extends Thread {
@@ -52,10 +53,12 @@ public class JHttpTunnelServer extends Thread {
 	//Initialise inBoundServerTable linked to SESSIONID
 	private Hashtable<String, BoundServer> inBoundServerTable;
 	
-	private final ExecutorService pool;		
+	private final ExecutorService pool;
+	private Future<String> thread_result;
 
 	JHttpTunnelServer(int port, int poolSize) {
 		super();
+		// We initialice the executor service
 		pool = Executors.newFixedThreadPool(poolSize);
 		connections = 0;
 		try {
@@ -108,10 +111,14 @@ public class JHttpTunnelServer extends Thread {
 			final Hashtable<String, ForwardClient> _clientsTable = clientsTable;
 			final Hashtable<String, BoundServer> _outBoundServerTable = outBoundServerTable;
 			final Hashtable<String, BoundServer> _inBoundServerTable = inBoundServerTable;			
-						
+			
+			/** To be removed			
 			pool.execute(new JHttpServerHandler(_socket, _host, _port, _clientsTable, 
-												_outBoundServerTable, _inBoundServerTable));			
-						
+												_outBoundServerTable, _inBoundServerTable));
+			*/
+			thread_result = pool.submit(new JHttpServerHandler(_socket, _host, _port, _clientsTable, 
+												_outBoundServerTable, _inBoundServerTable));
+			log.info("Callable thread result: " + thread_result);
 		}
 	}
 

@@ -48,11 +48,12 @@ class JHttpServerConnection {
 		inBoundServerTable = in;
 	}
 
-	public void newsocket() {
+	public String newsocket() {
 		String socket_readline = "";
 		String http_method = "";
 		String temp = "";
 		String th_name = "";
+		String result = "continue";
 
 		Hashtable<String, String> http_headers = new Hashtable<String, String>();
 		Hashtable<String, String> http_arguments = new Hashtable<String, String>();
@@ -188,6 +189,7 @@ class JHttpServerConnection {
 					} catch (Exception e) {
 					}
 				}
+				/** TO BE REMOVED
 				// Close any Thread with session_id reference
 				while(anyThreadRunning(session_id)) {
 					try {
@@ -198,6 +200,8 @@ class JHttpServerConnection {
 				}
 							
 				cleanupTables();
+				*/
+				result = "cleanup:" + session_id;
 			}
 
 			//out_server.setBoundLocked(false);
@@ -314,6 +318,8 @@ class JHttpServerConnection {
 			log.error("Method NOT allowed");
 			break;
 		}
+
+		return result;
 	}
 
 	private Hashtable<String, String> getHttpHeader(MySocket socket) {
@@ -884,6 +890,7 @@ class JHttpServerConnection {
 		return return_data;
 	}
 
+	/** To be removed
 	private boolean anyThreadRunning(String t_id) {
 		boolean ret_value = false;
 		Set<Thread> threadSet = Thread.getAllStackTraces().keySet();
@@ -918,5 +925,6 @@ class JHttpServerConnection {
 			log.debug("---> Thread Running: " + thread.getName());
 		}
 	}
+	*/
 }
 

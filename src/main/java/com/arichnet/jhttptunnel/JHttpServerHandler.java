@@ -11,7 +11,7 @@ import java.util.Hashtable;
 import java.util.List;
 import org.apache.log4j.Logger;
 
-public class JHttpServerHandler implements Runnable {
+public class JHttpServerHandler implements Callable {
 	private static final Logger log = Logger.getLogger(JHttpServerHandler.class);
 	private Socket socket;
 	private String host;
@@ -20,6 +20,7 @@ public class JHttpServerHandler implements Runnable {
 	private List<Integer> postRemotePorts = new ArrayList<Integer>();
 	private Hashtable<String, BoundServer> outBoundServerTable;
 	private Hashtable<String, BoundServer> inBoundServerTable;
+	private String result = "";
 	
 	public JHttpServerHandler(Socket s, String h, int p, Hashtable T, Hashtable o, Hashtable i){
 		socket = s;
@@ -30,18 +31,20 @@ public class JHttpServerHandler implements Runnable {
 		inBoundServerTable = i;
 	}			
 	
-	public void run() {
+	public String call() {		
 		try {
-			(new JHttpServerConnection(socket, host, port, clientsTable, 
-									   outBoundServerTable, inBoundServerTable)).newsocket();
+			result = (new JHttpServerConnection(socket, host, port, clientsTable, 
+									   			outBoundServerTable, inBoundServerTable)).newsocket();
 			log.info("Server connection closed!!!!!");
 
 		} catch (Exception e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
 			log.error("JHttpServer Error:" + errors.toString());
-		}		
-		
+			result = "error"
+		}
+
+		return result;		
 	}
 
 }
