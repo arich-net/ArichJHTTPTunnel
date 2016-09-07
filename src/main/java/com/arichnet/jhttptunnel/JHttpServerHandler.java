@@ -10,6 +10,7 @@ import java.util.Calendar;
 import java.util.Hashtable;
 import java.util.List;
 import org.apache.log4j.Logger;
+import java.util.concurrent.Callable;
 
 public class JHttpServerHandler implements Callable {
 	private static final Logger log = Logger.getLogger(JHttpServerHandler.class);
@@ -41,7 +42,7 @@ public class JHttpServerHandler implements Callable {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
 			log.error("JHttpServer Error:" + errors.toString());
-			result = "error"
+			result = "error";
 		}
 
 		return result;		

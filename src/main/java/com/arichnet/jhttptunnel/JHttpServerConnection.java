@@ -53,7 +53,7 @@ class JHttpServerConnection {
 		String http_method = "";
 		String temp = "";
 		String th_name = "";
-		String result = "continue";
+		String thread_result = "continue";
 
 		Hashtable<String, String> http_headers = new Hashtable<String, String>();
 		Hashtable<String, String> http_arguments = new Hashtable<String, String>();
@@ -75,7 +75,7 @@ class JHttpServerConnection {
 			   mySocket.close();
 			} while (!mySocket.isClosed());
 			
-			return;
+			return thread_result;
 		}		
 		
 		temp = socket_readline.substring(socket_readline.indexOf("/"));
@@ -201,7 +201,7 @@ class JHttpServerConnection {
 							
 				cleanupTables();
 				*/
-				result = "cleanup:" + session_id;
+				thread_result = "cleanup:" + session_id;
 			}
 
 			//out_server.setBoundLocked(false);
@@ -319,7 +319,7 @@ class JHttpServerConnection {
 			break;
 		}
 
-		return result;
+		return thread_result;
 	}
 
 	private Hashtable<String, String> getHttpHeader(MySocket socket) {

@@ -28,8 +28,11 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import org.apache.log4j.Logger;
 
 public class JHttpTunnelServer extends Thread {
@@ -54,7 +57,9 @@ public class JHttpTunnelServer extends Thread {
 	private Hashtable<String, BoundServer> inBoundServerTable;
 	
 	private final ExecutorService pool;
+	private ScheduledExecutorService cleaner_sched = null;
 	private Future<String> thread_result;
+	private Set<Future> future_results_set;
 
 	JHttpTunnelServer(int port, int poolSize) {
 		super();
@@ -80,6 +85,10 @@ public class JHttpTunnelServer extends Thread {
 			e.printStackTrace(new PrintWriter(errors));
 			log.error("JHttpTunnelServer error: " + errors.toString());
 		}
+		future_results_set = new HashSet<Future>();
+
+		cleaner_sched = Executors.newScheduledThreadPool(2);
+		startCleaner();
 	}
 
 	JHttpTunnelServer(int lport, String fhost, int fport, int poolSize) {		
@@ -116,11 +125,62 @@ public class JHttpTunnelServer extends Thread {
 			pool.execute(new JHttpServerHandler(_socket, _host, _port, _clientsTable, 
 												_outBoundServerTable, _inBoundServerTable));
 			*/
-			thread_result = pool.submit(new JHttpServerHandler(_socket, _host, _port, _clientsTable, 
-												_outBoundServerTable, _inBoundServerTable));
-			log.info("Callable thread result: " + thread_result);
+			try {
+				thread_result = pool.submit(new JHttpServerHandler(_socket, _host, _port, _clientsTable, 
+													_outBoundServerTable, _inBoundServerTable));
+
+				future_results_set.add(thread_result);
+				log.info("Thread for JHttpServerHandler started!. Adding " + thread_result + " to thread-result-set");
+
+			} catch (Exception e) {
+				StringWriter errors = new StringWriter();
+				e.printStackTrace(new PrintWriter(errors));
+				log.error("JHttpTunnelServer Exception: " + errors.toString());	
+			}
 		}
 	}
+
+	public void startCleaner() {
+		final Set<Future> ffuture_results_set = future_results_set;
+		Runnable runnable_cleaner = new Runnable() {
+			@Override
+			public void run() {
+				Set<Future> to_remove = new HashSet<Future>();
+				log.debug("Running cleaner at specific interval time set");
+				try {
+					if (!ffuture_results_set.isEmpty()) {
+						Iterator future_iter = ffuture_results_set.iterator();
+            		while (future_iter.hasNext()) {
+               		Future future = (Future) future_iter.next();
+               		if (future.isDone()) {
+                  		log.debug("Result for " + future + " is " + future.get());
+								to_remove.add(future);
+               		}
+            		}
+					}
+					// Checking the Future Objects to remove
+					if (!to_remove.isEmpty()) {
+						Iterator future_toremove_iter = to_remove.iterator();
+						while (future_toremove_iter.hasNext()) {							
+							Future temp = (Future) future_toremove_iter.next();
+							ffuture_results_set.remove(temp);
+							log.debug("Future object " + temp + " removed from Future list");
+						}
+					}
+				} catch (InterruptedException e) {
+					StringWriter errors = new StringWriter();
+            	e.printStackTrace(new PrintWriter(errors));
+            	log.error("Cleaner InterruptedException: " + errors.toString());
+				} catch (ExecutionException e) {
+					StringWriter errors = new StringWriter();
+            	e.printStackTrace(new PrintWriter(errors));
+            	log.error("Cleaner ExecutionException: " + errors.toString());
+				}
+				log.debug("Finishing cleaner");
+			}
+		};
+		cleaner_sched.scheduleAtFixedRate(runnable_cleaner, 10, 60, TimeUnit.SECONDS);
+   }
 
 	public static void main(String[] args) {
 		int port = 8888;
