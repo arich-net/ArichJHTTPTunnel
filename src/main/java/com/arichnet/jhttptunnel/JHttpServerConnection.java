@@ -223,10 +223,12 @@ class JHttpServerConnection {
 
 			//************************************************************************************
 			//                     Waiting for the following conditions to be met
-			//  - OutBoundServerTable contain the corresponding to its SessionID
-			//  - OutBoundServer have the tunnel opened 
-			//  - InBoundServerTable contain the corresponding to its SessionID
-			//  - InBoundServerTable not Locked by another process
+			//  - OutBoundServerTable contains the corresponding object to its SessionID.
+			//  - OutBoundServer object on the table is not null.
+			//  - InBoundServerTable contains the corresponding object to its SessionID.
+			//  - InBoundServer object on the table is not null.
+			//  - ClientsTable contains the corresponding object to its SessionID.
+			//  - ForwardClient object on the table is not null.
 			//************************************************************************************
 
 			while ((!outBoundServerTable.containsKey(session_id)) ||
@@ -251,6 +253,8 @@ class JHttpServerConnection {
 			in_server = (InBoundServer) inBoundServerTable.get(session_id);
 			out_server = (OutBoundServer) outBoundServerTable.get(session_id);
 			forward_client = (ForwardClient) clientsTable.get(session_id); 
+
+			// We wait also until the tunnel is opened to start processing the GET request
 			
 			while (!out_server.getTunnelOpened() ||
 				   in_server.getBoundLocked()) {
@@ -305,6 +309,12 @@ class JHttpServerConnection {
 			*/
 
 			in_server.setBoundLocked(true	);
+
+			//****************************************************************************
+			//   The reasun that processGET does not return any value is due the error 
+			//   actions are being processed by POST threads
+			//****************************************************************************
+
 			processGET(mySocket, http_headers, http_arguments, in_server, out_server);
 			in_server.setBoundLocked(false);
 			close(mySocket);
@@ -486,8 +496,8 @@ class JHttpServerConnection {
 			}
 
 			if (out_server.getSendClose()) {
-					ret_value = "cleanup";
-					in_server.setSendClose(true);
+				ret_value = "cleanup";
+				in_server.setSendClose(true);				
 			}
 
 		//} catch (InterruptedException e) {
@@ -621,10 +631,10 @@ class JHttpServerConnection {
 		boolean keep_request = true;
 		int position = 0;
 		//int correction = 0;
-		ScheduledExecutorService scheduledPool = Executors.newScheduledThreadPool(4);
+		ScheduledExecutorService scheduledPool = Executors.newScheduledThreadPool(2);
 
-		// =============================================================
-		// We initialise the scheduler to send PADs
+		// =========================================================================
+		// We initialise the scheduler to send PADs periodically
 
 		final MySocket fsocket = socket;
 		final BoundServer fin_server = in_server;
@@ -652,7 +662,7 @@ class JHttpServerConnection {
 			}
 		};
 		scheduledPool.scheduleAtFixedRate(runnableSendPad, 5, 5, TimeUnit.SECONDS);
-		// =============================================================
+		// =========================================================================
 
 		log.info("Starting GET processing: " + forward_client.toString());
 		
@@ -706,6 +716,7 @@ class JHttpServerConnection {
 			if (in_server.getSendClose()) {
 				log.debug("Closing the socket and sending CLOSE signal");
 				sendClientCloseSignal(in_server, socket);
+				out_server.setSendClose(true);
 				getTraffic++;
 			}
 			// Stoping the scheduled thread
@@ -715,6 +726,7 @@ class JHttpServerConnection {
 			
 		} catch (Exception e) {
 			scheduledPool.shutdown();
+			sendClientCloseSignal(in_server, socket);
 			out_server.setSendClose(true);
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));

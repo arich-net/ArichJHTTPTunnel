@@ -167,19 +167,22 @@ public class JHttpTunnelServer extends Thread {
 							log.debug("Future object " + temp + " removed from Future list");
 						}
 					}
+
 				} catch (InterruptedException e) {
 					StringWriter errors = new StringWriter();
-            	e.printStackTrace(new PrintWriter(errors));
-            	log.error("Cleaner InterruptedException: " + errors.toString());
+					e.printStackTrace(new PrintWriter(errors));
+					log.error("Cleaner InterruptedException: " + errors.toString());
+
 				} catch (ExecutionException e) {
 					StringWriter errors = new StringWriter();
-            	e.printStackTrace(new PrintWriter(errors));
-            	log.error("Cleaner ExecutionException: " + errors.toString());
+					e.printStackTrace(new PrintWriter(errors));
+					log.error("Cleaner ExecutionException: " + errors.toString());
 				}
+
 				log.debug("Finishing cleaner");
 			}
 		};
-		cleaner_sched.scheduleAtFixedRate(runnable_cleaner, 10, 60, TimeUnit.SECONDS);
+		cleaner_sched.scheduleAtFixedRate(runnable_cleaner, 10, 30, TimeUnit.SECONDS);
    }
 
 	public static void main(String[] args) {
