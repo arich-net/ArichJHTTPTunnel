@@ -3,4 +3,5 @@
 /.settings/
 /Keystore
 /backup
+/ssl/
 *.swp

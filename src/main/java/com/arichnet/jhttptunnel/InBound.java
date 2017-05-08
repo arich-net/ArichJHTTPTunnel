@@ -30,7 +30,12 @@
 package com.arichnet.jhttptunnel;
 
 import java.io.*;
+import java.security.*;
+import java.security.cert.*;
 
 abstract class InBound extends Bound {
-	abstract int receiveData(byte[] buf, int s, int l) throws IOException;	
+	abstract int receiveData(byte[] buf, int s, int l) 
+			throws IOException,KeyManagementException,
+			       UnrecoverableKeyException,NoSuchAlgorithmException,
+			       CertificateException, KeyStoreException;	
 }

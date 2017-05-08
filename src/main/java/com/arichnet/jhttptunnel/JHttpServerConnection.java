@@ -48,7 +48,7 @@ class JHttpServerConnection {
 		inBoundServerTable = in;
 	}
 
-	public String newsocket() {
+	public String newsocket() throws IOException {
 		String socket_readline = "";
 		String http_method = "";
 		String temp = "";
@@ -61,6 +61,20 @@ class JHttpServerConnection {
 		Thread client_thread = null;
 		
 		log.info("New TCP Connection started");
+		
+		//byte[] small = new byte[1];
+		//int numberread = mySocket.read(small, 0, 1);
+		//log.debug("First Data Read: " + Arrays.toString(small) + " AVAILABLE:" + mySocket.available() + " READ:" + numberread);
+		//while(mySocket.available() <= 0) {
+		//	try {
+		//		Thread.currentThread().sleep((long) 2000);
+		//		log.debug("Socket available: " + mySocket.available());
+		//	} catch (Exception e) {
+		//	}
+		//}
+		//byte[] tempo = new byte[4];
+		//mySocket.read(tempo, 0, 4);
+		//log.debug("First Data Received: " + Arrays.toString(tempo));
 
 
 		socket_readline = mySocket.readLine();
@@ -214,7 +228,7 @@ class JHttpServerConnection {
 
 			log.info("GET method called");
 			
-			// Renaming the Thread to ease clening-up tasks
+			// Renaming the Thread to ease cleaning-up tasks
 			th_name = Thread.currentThread().getName();
 			if (th_name.contains(session_id))
 				Thread.currentThread().setName(th_name.split(":")[0] + ":" + session_id + "-get");
@@ -259,7 +273,9 @@ class JHttpServerConnection {
 			while (!out_server.getTunnelOpened() ||
 				   in_server.getBoundLocked()) {
 				try {
-					Thread.currentThread().sleep((long) 20);
+					log.debug("Tunnel Opened Value (out_server): " + out_server.getTunnelOpened());
+					log.debug("Tunnel Bound Locked: (in_server): " + in_server.getBoundLocked());
+					Thread.currentThread().sleep((long) 2000);
 				} catch (Exception e) {
 				}
 			}
@@ -308,7 +324,7 @@ class JHttpServerConnection {
 			** ===========================================================================
 			*/
 
-			in_server.setBoundLocked(true	);
+			in_server.setBoundLocked(true);
 
 			//****************************************************************************
 			//   The reasun that processGET does not return any value is due the error 
@@ -394,6 +410,7 @@ class JHttpServerConnection {
 		boolean keep_request = true;
 		int postTraffic = 0;
 		String ret_value = "continue";
+		//byte[] tempo = new byte [1]; 
 
 		log.info("Starting POST processing: " + out_server.toString());
 			
@@ -408,90 +425,93 @@ class JHttpServerConnection {
 			      ) {
 			
 				if (out_server.getTunnelOpened()) {
-					if (socket.available() > 0) {
-						// Get the first control byte						
-						temp = socket.read(buff, 0, 1);						
-						postTraffic++;
-						controlbyte = buff[0];
-						log.debug("Control Byte Received: " + controlbyte);
-
-						switch (controlbyte & 0xFF) {
-						case JHttpTunnel.TUNNEL_DATA:
-							temp = socket.read(buff, 0, 2);
-							postTraffic += 2;
-							data_length = ((buff[0] & 0xFF) << 8) + (buff[1] & 0xFF);
-
-							// Check if the size is higher than the limit
-							// Stop get or post after processing this data
-							if ((data_length + postTraffic) > JHttpTunnel.CONTENT_LENGTH) {
-								keep_request = false;
-								log.debug("Traffic Limit Reached: " + (data_length + postTraffic) + 
-										  " | Continue Tunnel Flag: " + keep_request);
-							}
-
-							log.debug("POST Data Length: " + data_length + 
-									  " | Continue Tunnel Flag: " + keep_request);
-
-							do {
-								if (out_server.getBufferPosition(remote_port) <= 0) {
-									if (data_length > JHttpTunnel.BUFFER_LENGTH){
-										socket.read(buff, 0, JHttpTunnel.BUFFER_LENGTH);
-										postTraffic += JHttpTunnel.BUFFER_LENGTH;
-										data_length -= JHttpTunnel.BUFFER_LENGTH;
-										out_server.writeData(buff, remote_port);			
-									}
-									else {
-										socket.read(buff, 0, data_length);
-										postTraffic += data_length;
-										out_server.writeData(Arrays.copyOfRange(buff, 0, data_length),remote_port);
-										data_length = 0;
-									}
-									
+					if (socket.read(buff, 0, 1) > 0) {
+						if (socket.available() > 0) {
+							// Get the first control byte						
+							// temp = socket.read(buff, 0, 1);						
+							postTraffic++;
+							controlbyte = buff[0];
+							log.debug("Control Byte Received: " + controlbyte);
+	
+							switch (controlbyte & 0xFF) {
+							case JHttpTunnel.TUNNEL_DATA:
+								temp = socket.read(buff, 0, 2);
+								postTraffic += 2;
+								data_length = ((buff[0] & 0xFF) << 8) + (buff[1] & 0xFF);
+	
+								// Check if the size is higher than the limit
+								// Stop get or post after processing this data
+								if ((data_length + postTraffic) > JHttpTunnel.CONTENT_LENGTH) {
+									keep_request = false;
+									log.debug("Traffic Limit Reached: " + (data_length + postTraffic) + 
+											  " | Continue Tunnel Flag: " + keep_request);
 								}
-
-							} while (data_length > 0);
-							// Print the status of the buffers
-							log.debug("* Buff Status: " + out_server);							
-							break;
-
-						case JHttpTunnel.TUNNEL_PAD1:
-							log.info("Server PAD received");							
-							break;
-
-						case JHttpTunnel.TUNNEL_DISCONNECT:
-							keep_request = false;
-							log.info("Disconnecting the tunnel!! ");
-							ret_value = "continue";
-							break;
-
-						case JHttpTunnel.TUNNEL_CLOSE:
-							keep_request = false;
-							log.info("Closing the tunnel!!");
-							out_server.setTunnelOpened(false);
-							ret_value = "cleanup";
-							in_server.setSendClose(true);					
-							break;
+	
+								log.debug("POST Data Length: " + data_length + 
+										  " | Continue Tunnel Flag: " + keep_request);
+	
+								do {
+									if (out_server.getBufferPosition(remote_port) <= 0) {
+										if (data_length > JHttpTunnel.BUFFER_LENGTH){
+											socket.read(buff, 0, JHttpTunnel.BUFFER_LENGTH);
+											postTraffic += JHttpTunnel.BUFFER_LENGTH;
+											data_length -= JHttpTunnel.BUFFER_LENGTH;
+											out_server.writeData(buff, remote_port);			
+										}
+										else {
+											socket.read(buff, 0, data_length);
+											postTraffic += data_length;
+											out_server.writeData(Arrays.copyOfRange(buff, 0, data_length),remote_port);
+											data_length = 0;
+										}
+										
+									}
+	
+								} while (data_length > 0);
+								// Print the status of the buffers
+								log.debug("* Buff Status: " + out_server);							
+								break;
+	
+							case JHttpTunnel.TUNNEL_PAD1:
+								log.info("Server PAD received");							
+								break;
+	
+							case JHttpTunnel.TUNNEL_DISCONNECT:
+								keep_request = false;
+								log.info("Disconnecting the tunnel!! ");
+								ret_value = "continue";
+								break;
+	
+							case JHttpTunnel.TUNNEL_CLOSE:
+								keep_request = false;
+								log.info("Closing the tunnel!!");
+								out_server.setTunnelOpened(false);
+								ret_value = "cleanup";
+								in_server.setSendClose(true);					
+								break;
+							}
 						}
 					}
-
 				} else {
-					if (socket.available() > 0) {
-						temp = socket.read(buff, 0, 1);					
-						postTraffic++;
-						controlbyte = buff[0];
-						log.debug("Tunnel not yet Opened, Control Byte Received: " + controlbyte);					
-
-						if ((controlbyte & 0xFF) == JHttpTunnel.TUNNEL_OPEN) {
-							temp = socket.read(buff, 0, 3);
-							postTraffic += 3;
-							out_server.setTunnelOpened(true);
-							log.info("Tunnel Opened, Starting ForwardClient Thread");
-							client_thread.start();
+					if (socket.read(buff, 0, 1) > 0) {
+						if (socket.available() > 0) {
+							//temp = socket.read(buff, 0, 1);					
+							postTraffic++;
+							controlbyte = buff[0];
+							log.debug("Tunnel not yet Opened, Control Byte Received: " + controlbyte);					
+	
+							if ((controlbyte & 0xFF) == JHttpTunnel.TUNNEL_OPEN) {
+								temp = socket.read(buff, 0, 3);
+								postTraffic += 3;
+								out_server.setTunnelOpened(true);
+								log.info("Tunnel Opened, Starting ForwardClient Thread");
+								client_thread.start();
+							}
 						}
 					}
 				}
-			
-				Thread.currentThread().sleep((long) 20); // Delay for the while loop
+				log.debug("Socket available: " + socket.available());			
+				Thread.currentThread().sleep((long) 2000); // Delay for the while loop
 			
 			}
 
@@ -623,8 +643,9 @@ class JHttpServerConnection {
 
 	private void processGET(MySocket socket, Hashtable<String, String> http_headers,
 			Hashtable<String, String> http_arguments, InBoundServer in_server, 
-			OutBoundServer out_server) {
+			OutBoundServer out_server) throws IOException {
 				
+		log.info("Starting GET processing: " + in_server.toString());
 		byte[] buff = new byte[10240];
 		byte[] data_length = new byte[2];
 		int getTraffic = 0;
@@ -719,7 +740,7 @@ class JHttpServerConnection {
 				out_server.setSendClose(true);
 				getTraffic++;
 			}
-			// Stoping the scheduled thread
+			// Stopping the scheduled thread
 			
 			scheduledPool.shutdown();
 			log.info("About to CLOSE GET socket... ");

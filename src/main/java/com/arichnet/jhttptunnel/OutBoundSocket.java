@@ -30,9 +30,22 @@
 package com.arichnet.jhttptunnel;
 
 import java.net.*;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Calendar;
+
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManagerFactory;
+
 import org.apache.log4j.Logger;
 
 import java.io.*;
@@ -46,20 +59,56 @@ public class OutBoundSocket extends OutBound {
 	private OutputStream out = null;	
 
 	@Override
-	public void connect() throws IOException {
+	public void connect() throws IOException,
+	 							 KeyStoreException,
+	 							 CertificateException,
+	 							 NoSuchAlgorithmException,
+	 							 UnrecoverableKeyException,
+	 							 KeyManagementException {
 		//close(); This was causing the socket to cleanup before being processes on the server side
 		log.info("Calling connect from: " + this.getClass().getName());
 
 		String host = getHost();
 		int port = getPort();
 		int sid = getSid();
+		boolean ssl = getSSL();
+		String kspass = getKsPass();
 
 		String request = "/index.html?crap=" + sid + " HTTP/1.1";
 
 		Proxy p = getProxy();
 		if (p == null) {
-			socket = new Socket(host, port);
-			request = "POST " + request;
+		   if (!ssl) {
+			  log.debug("Starting client POST over PLAIN connection");
+		      socket = new Socket(host, port);
+		      request = "POST " + request;
+		   } else {
+ 			   // First we initialise the Keystore on the JAR file 	
+			   KeyStore keyStore=KeyStore.getInstance(KeyStore.getDefaultType());
+			   InputStream keyStream=ClassLoader.getSystemResourceAsStream("security/jhttpserver.jks");
+			   keyStore.load(keyStream, kspass.toCharArray());
+			    
+			   KeyStore trustKeyStore=KeyStore.getInstance(KeyStore.getDefaultType());
+			   keyStream=ClassLoader.getSystemResourceAsStream("security/jhttpserver-truststore.jks");
+			   trustKeyStore.load(keyStream, kspass.toCharArray());
+			   
+			   // KeyManagers decide which key material to use
+			   KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+			   kmf.init(keyStore, kspass.toCharArray());
+			    
+			   // TrustManagers decide whether to allow connections
+			   TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+			   tmf.init(trustKeyStore);
+			    
+			   SSLContext context = SSLContext.getInstance("TLS");
+			   context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+			   
+			   log.debug("Starting client POST over TLS connection");
+			   SSLSocketFactory ssf = context.getSocketFactory();
+			   socket = ssf.createSocket(host, port);
+			   request = "POST " + request;
+			   
+		   }
 		} else {
 			String phost = p.getHost();
 			int pport = p.getPort();
@@ -70,25 +119,45 @@ public class OutBoundSocket extends OutBound {
 
 		in = socket.getInputStream();
 		out = socket.getOutputStream();
+		
+		// Testing binary data
+		//byte[] command = new byte[4];
+		//command[0] = JHttpTunnel.TUNNEL_OPEN;
+		//command[1] = 0;
+		//command[2] = 1;
+		//command[3] = 0;
+		
+		//out.write(command, 0, 4);
+		
 		out.write(request.getBytes());
+		out.write(_rn);
+		out.write(("Host: " + host + ":" + port).getBytes());
+		out.write(_rn);
+		out.write("Cache-Control: no-cache, no-store".getBytes());
 		out.write(_rn);
 		out.write(("Content-Length: " + getContentLength()).getBytes());
 		out.write(_rn);
 		out.write("Connection: close".getBytes());
-		out.write(_rn);
-		out.write(("Host: " + host + ":" + port).getBytes());
+		
 		out.write(_rn);
 
 		out.write(_rn);
 		out.flush();
+		log.debug("Finished starting POST Data with SSL=" + ssl + " Out=" + out);
 
 		sendCount = getContentLength();
 		// setOutputStream(out);
 	}
 
 	@Override
-	public void sendData(byte[] foo, int s, int l, boolean flush) throws IOException {
-		// System.out.println("sendDtat: l="+l+" sendCount="+sendCount);
+	public void sendData(byte[] foo, int s, int l, boolean flush) throws IOException,
+	   																	 KeyManagementException,
+	   																	 UnrecoverableKeyException,
+	   																	 NoSuchAlgorithmException,
+	   																	 CertificateException,
+	   																	 KeyStoreException {
+		log.debug("sendDtat: l="+l+" sendCount="+sendCount+" s="+s);
+		
 		if (l <= 0)
 			return;
 		if (sendCount <= 0) {
@@ -99,17 +168,19 @@ public class OutBoundSocket extends OutBound {
 		int retry = 2;
 		while (retry > 0) {
 			try {
-				out.write(foo, s, l);
+				log.debug("Data to write " + Arrays.toString(foo) + " OUT=" + out);
+				//out.write(foo, s, l);
+				out.write(foo);
 				if (flush) {
 					out.flush();
 				}
 				sendCount -= l;
 				return;
 			} catch (SocketException e) {
-				// System.out.println("2# "+e+" "+l+" "+flush);
+				System.out.println("SocketException 2# "+e+" "+l+" "+flush);
 				throw e;
 			} catch (IOException e) {
-				// System.out.println("21# "+e+" "+l+" "+flush);
+				System.out.println("IOException 21# "+e+" "+l+" "+flush);
 				connect();
 			}
 			retry--;

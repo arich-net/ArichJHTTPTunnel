@@ -30,12 +30,16 @@
 package com.arichnet.jhttptunnel;
 
 import java.io.*;
+import java.security.*;
+import java.security.cert.*;
 
 abstract public class Bound {
 	private String host = null;
 	private int port = 80;
 	private Proxy proxy = null;
 	private int sid = 1;
+	private boolean ssl = false;
+	private String kspass = "";
 
 	public void setHost(String host) {
 		this.host = host;
@@ -51,6 +55,14 @@ abstract public class Bound {
 
 	public void setSid(int sid) {
 		this.sid = sid;
+	}
+	
+	public void setSSL(boolean ssl) {
+		this.ssl = ssl;
+	}
+	
+	public void setKsPass(String kspass) {
+		this.kspass = kspass;
 	}
 
 	protected String getHost() {
@@ -68,8 +80,21 @@ abstract public class Bound {
 	protected int getSid() {
 		return sid;
 	}
+	
+	protected boolean getSSL() {
+		return ssl;
+	}
+	
+	public String getKsPass() {
+		return kspass;
+	}
 
-	abstract public void connect() throws IOException;
+	abstract public void connect() throws IOException,
+										  KeyStoreException,
+										  CertificateException,
+										  NoSuchAlgorithmException,
+										  UnrecoverableKeyException,
+										  KeyManagementException;
 
 	abstract public void close() throws IOException;
 }

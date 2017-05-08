@@ -46,6 +46,7 @@ public class JHttpTunnelServer extends Thread {
 	static int port = 8888;
 	static String myaddress = null;
 	static String myURL = null;
+	static boolean ssl = false;
 
 	private String forward_host;
 	private int forward_port;
@@ -63,30 +64,31 @@ public class JHttpTunnelServer extends Thread {
 
 	JHttpTunnelServer(int port, int poolSize) {
 		super();
-		// We initialice the executor service
+		// We initialise the executor service
 		pool = Executors.newFixedThreadPool(poolSize);
 		connections = 0;
 		try {
 			serverSocket = new ServerSocket(port);
+			myURL = (myaddress == null) ? 
+					"http://" + InetAddress.getLocalHost().getHostAddress() + ":" + port :
+					"http://" + myaddress + ":" + port;
+			
+			log.info("myURL: " + myURL);
+			
 		} catch (IOException e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
 			log.error("ServerSocket error: " + errors.toString());
 			System.exit(1);
-		}
-		try {
-			if (myaddress == null)
-				myURL = "http://" + InetAddress.getLocalHost().getHostAddress() + ":" + port;
-			else
-				myURL = "http://" + myaddress + ":" + port;
-			log.info("myURL: " + myURL);
+			
 		} catch (Exception e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
 			log.error("JHttpTunnelServer error: " + errors.toString());
 		}
+		
+		// We initialise the cleaner service
 		future_results_set = new HashSet<Future>();
-
 		cleaner_sched = Executors.newScheduledThreadPool(2);
 		startCleaner();
 	}
@@ -104,39 +106,37 @@ public class JHttpTunnelServer extends Thread {
 	@Override
 	public void run() {
 		Socket socket = null;
-		while (true) {
-			try {
-				socket = serverSocket.accept();
-			} catch (IOException e) {
-				log.error("Socket accept error, probably the port is busy");
-				System.exit(1);
-			}
-			connections++;
-			// new Spawn(socket);
-			final Socket _socket = socket;
-			final String _host = forward_host;
-			final int _port = forward_port;
-			// final ForwardClient _forwardclient = forward_client;
-			final Hashtable<String, ForwardClient> _clientsTable = clientsTable;
-			final Hashtable<String, BoundServer> _outBoundServerTable = outBoundServerTable;
-			final Hashtable<String, BoundServer> _inBoundServerTable = inBoundServerTable;			
+		try {
+			while (true) {
 			
-			/** To be removed			
-			pool.execute(new JHttpServerHandler(_socket, _host, _port, _clientsTable, 
-												_outBoundServerTable, _inBoundServerTable));
-			*/
-			try {
-				thread_result = pool.submit(new JHttpServerHandler(_socket, _host, _port, _clientsTable, 
-													_outBoundServerTable, _inBoundServerTable));
-
+				socket = serverSocket.accept();
+				connections++;
+				
+				// new Spawn(socket);
+				final Socket _socket = socket;
+				final String _host = forward_host;
+				final int _port = forward_port;
+				// final ForwardClient _forwardclient = forward_client;
+				final Hashtable<String, ForwardClient> _clientsTable = clientsTable;
+				final Hashtable<String, BoundServer> _outBoundServerTable = outBoundServerTable;
+				final Hashtable<String, BoundServer> _inBoundServerTable = inBoundServerTable;			
+				
+				thread_result = pool.submit(
+						new JHttpServerHandler(_socket, _host, _port, _clientsTable, 
+											   _outBoundServerTable, _inBoundServerTable)
+				);
+	
 				future_results_set.add(thread_result);
 				log.info("Thread for JHttpServerHandler started!. Adding " + thread_result + " to thread-result-set");
-
-			} catch (Exception e) {
-				StringWriter errors = new StringWriter();
-				e.printStackTrace(new PrintWriter(errors));
-				log.error("JHttpTunnelServer Exception: " + errors.toString());	
+	
 			}
+		} catch (IOException e) {
+			log.error("Socket accept error, probably the port is busy");
+			System.exit(1);
+		} catch (Exception e) {
+			StringWriter errors = new StringWriter();
+			e.printStackTrace(new PrintWriter(errors));
+			log.error("JHttpTunnelServer Exception: " + errors.toString());	
 		}
 	}
 
@@ -150,13 +150,13 @@ public class JHttpTunnelServer extends Thread {
 				try {
 					if (!ffuture_results_set.isEmpty()) {
 						Iterator future_iter = ffuture_results_set.iterator();
-            		while (future_iter.hasNext()) {
-               		Future future = (Future) future_iter.next();
-               		if (future.isDone()) {
-                  		log.debug("Result for " + future + " is " + future.get());
-								to_remove.add(future);
-               		}
-            		}
+	            		while (future_iter.hasNext()) {
+	            			Future future = (Future) future_iter.next();
+	            			if (future.isDone()) {
+	            				log.debug("Result for " + future + " is " + future.get());
+	            						to_remove.add(future);
+	            			}
+	            		}
 					}
 					// Checking the Future Objects to remove
 					if (!to_remove.isEmpty()) {
@@ -183,7 +183,7 @@ public class JHttpTunnelServer extends Thread {
 			}
 		};
 		cleaner_sched.scheduleAtFixedRate(runnable_cleaner, 10, 30, TimeUnit.SECONDS);
-   }
+    }
 
 	public static void main(String[] args) {
 		int port = 8888;
@@ -198,6 +198,8 @@ public class JHttpTunnelServer extends Thread {
 		int fport = 0;
 		int limitThreads = 10;
 		String _fw = System.getProperty("forward");
+		Boolean _ssl = new Boolean((String) System.getProperty("ssl"));
+		String _kspass = System.getProperty("kspass");
 
 		if (_fw != null && _fw.indexOf(':') != -1) {
 			fport = Integer.parseInt(_fw.substring(_fw.lastIndexOf(':') + 1));
@@ -207,6 +209,13 @@ public class JHttpTunnelServer extends Thread {
 			System.err.println("forward-port is not given");
 			System.exit(1);
 		}
-		(new JHttpTunnelServer(port, fhost, fport, limitThreads)).start();
+		
+	
+		if (_ssl) {
+			(new JHttpTunnelServerSSL(port, fhost, fport, limitThreads, _kspass)).start();
+		}
+		else {
+			(new JHttpTunnelServer(port, fhost, fport, limitThreads)).start();
+		}
 	}
 }

@@ -32,6 +32,12 @@ package com.arichnet.jhttptunnel;
 import java.io.*;
 import java.lang.*;
 import java.net.*;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
+import java.util.Arrays;
 import java.util.Timer;
 import java.util.TimerTask;
 import org.apache.log4j.Logger;
@@ -48,6 +54,8 @@ public class JHttpTunnelClient {
 	private int dest_port = 0;
 	private Proxy proxy = null;
 	private int session_id = 1;
+	private boolean ssl = false;
+	private String kspass = "";
 
 	private InBound ib = null;
 	private OutBound ob = null;
@@ -62,9 +70,14 @@ public class JHttpTunnelClient {
 	}
 
 	public JHttpTunnelClient(String host, int port, int sid) {
-		this.dest_host = host;
-		this.dest_port = port;
+		this(host, port);
 		this.session_id = sid;
+	}
+	
+	public JHttpTunnelClient(String host, int port, int sid, boolean ssl, String kspass) {
+		this(host, port, sid);
+		this.ssl = ssl;
+		this.kspass = kspass;
 	}
 
 	public void setProxy(String host, int port) {
@@ -85,6 +98,8 @@ public class JHttpTunnelClient {
 		ib.setPort(dest_port);
 		ib.setProxy(proxy);
 		ib.setSid(session_id);
+		ib.setSSL(ssl);
+		ib.setKsPass(kspass);
 
 		if (ob == null) {
 			/*
@@ -99,11 +114,16 @@ public class JHttpTunnelClient {
 		ob.setProxy(proxy);
 		ob.setContentLength(CONTENT_LENGTH);
 		ob.setSid(session_id);
+		ob.setSSL(ssl);
+		ob.setKsPass(kspass);
 
 		try {
 			getOutbound();
 			getInbound();
 		} catch (Exception e) {
+			StringWriter errors = new StringWriter();
+			e.printStackTrace(new PrintWriter(errors));
+			log.error("JHttpTunnelException: " + errors.toString());	
 			throw new JHttpTunnelException(e.toString());
 		}
 		
@@ -116,11 +136,17 @@ public class JHttpTunnelClient {
 					log.debug("Client PAD sent");
 				}
 				catch(IOException e) {}
+				catch(Exception e) {}
 			}
 		}, JHttpTunnel.KEEP_ALIVE * 1000, JHttpTunnel.KEEP_ALIVE * 1000);
 	}
 
-	private void getOutbound() throws IOException {
+	private void getOutbound() throws IOException,
+									  KeyManagementException,
+									  UnrecoverableKeyException,
+									  NoSuchAlgorithmException,
+									  CertificateException, 
+									  KeyStoreException {
 		// log.debug("getOutbound()");
 		if (closed) {
 			throw new IOException("broken pipe");
@@ -132,14 +158,24 @@ public class JHttpTunnelClient {
 		}
 	}
 
-	private void getInbound() throws IOException {
+	private void getInbound() throws IOException,
+	  								 KeyManagementException,
+	  								 UnrecoverableKeyException,
+	  								 NoSuchAlgorithmException,
+	  								 CertificateException, 
+	  								 KeyStoreException {
 		// System.out.println("getInbound()");
 		ib.connect();
 	}
 
 	private final byte[] command = new byte[4];
 
-	public void openChannel(int i) throws IOException {
+	public void openChannel(int i) throws IOException,
+		 								  KeyManagementException,
+		 								  UnrecoverableKeyException,
+		 								  NoSuchAlgorithmException,
+		 								  CertificateException, 
+		 								  KeyStoreException {
 		// log.debug("sendOpen: " + JHttpTunnel.TUNNEL_OPEN);
 		// log.debug("Stack Trace: " + Thread.currentThread().getStackTrace()[2].getMethodName());
 
@@ -147,27 +183,49 @@ public class JHttpTunnelClient {
 		command[1] = 0;
 		command[2] = 1;
 		command[3] = 0;
+		log.debug("Opening Tunnel Data: " + Arrays.toString(command) + " OUT=" + ob);
 		ob.sendData(command, 0, 4, true);
+		log.debug("Tunnel Opened: " + Arrays.toString(command));
 	}
 
-	public void sendDisconnect() throws IOException {
+	public void sendDisconnect() throws IOException,
+	  									KeyManagementException,
+	  									UnrecoverableKeyException,
+	  									NoSuchAlgorithmException,
+	  									CertificateException, 
+	  									KeyStoreException {
 		// log.debug("sendDisconnect: "+sendCount);
 		command[0] = JHttpTunnel.TUNNEL_DISCONNECT;
 		ob.sendData(command, 0, 1, true);
 	}
 
-	public void sendClose() throws IOException {
+	public void sendClose() throws IOException,
+								   KeyManagementException,
+								   UnrecoverableKeyException,
+								   NoSuchAlgorithmException,
+								   CertificateException, 
+								   KeyStoreException {
 		log.debug("Client sendClose: ");
 		command[0] = JHttpTunnel.TUNNEL_CLOSE;
 		ob.sendData(command, 0, 1, true);
 	}
 
-	public void sendPad1(boolean flush) throws IOException {
+	public void sendPad1(boolean flush) throws IOException,
+	   										   KeyManagementException,
+	   										   UnrecoverableKeyException,
+	   										   NoSuchAlgorithmException,
+	   										   CertificateException, 
+	   										   KeyStoreException {
 		command[0] = JHttpTunnel.TUNNEL_PAD1;
 		ob.sendData(command, 0, 1, flush);
 	}
 
-	public void write(byte[] foo, int s, int l) throws IOException {
+	public void write(byte[] foo, int s, int l) throws IOException,
+	  												   KeyManagementException,
+	  												   UnrecoverableKeyException,
+	  												   NoSuchAlgorithmException,
+	  												   CertificateException,
+	  												   KeyStoreException {
 		log.debug("write: length=" + l + ", ob.sendCount=" + ob.sendCount);
 		if (l <= 0)
 			return;
@@ -357,17 +415,20 @@ public class JHttpTunnelClient {
 			@Override
 			public void write(int foo) throws IOException {
 				tmp[0] = (byte) foo;
-				JHttpTunnelClient.this.write(tmp, 0, 1);
+				try { JHttpTunnelClient.this.write(tmp, 0, 1); }
+				catch (Exception e){ log.debug("Error writing data in socket"); }
 			}
 
 			@Override
 			public void write(byte[] foo) throws IOException {
-				JHttpTunnelClient.this.write(foo, 0, foo.length);
+				try { JHttpTunnelClient.this.write(foo, 0, foo.length); }
+				catch (Exception e){ log.debug("Error writing data in socket"); }
 			}
 
 			@Override
 			public void write(byte[] foo, int s, int l) throws IOException {
-				JHttpTunnelClient.this.write(foo, s, l);
+				try { JHttpTunnelClient.this.write(foo, s, l); }
+				catch (Exception e){ log.debug("Error writing data in socket"); }
 			}
 		};
 		return out;
@@ -425,6 +486,9 @@ public class JHttpTunnelClient {
 				proxy_host = proxy_host.substring(0, proxy_host.lastIndexOf(':'));
 			}
 			
+			Boolean _ssl = new Boolean((String) System.getProperty("ssl"));
+			String _kspass = System.getProperty("kspass");
+			
 			log.info("Opening local port: " + lport);
 			ServerSocket ss = new ServerSocket(lport);
 			ss.setReuseAddress(true);
@@ -433,15 +497,17 @@ public class JHttpTunnelClient {
 
 			final InputStream sin = socket.getInputStream();
 			final OutputStream sout = socket.getOutputStream();
+			int sessionid = 1234567890;
 
-			final JHttpTunnelClient jhtc = new JHttpTunnelClient(host, hport);
+			final JHttpTunnelClient jhtc = new JHttpTunnelClient(host, hport, sessionid, 
+																 _ssl.booleanValue(),
+																 _kspass);
 			if (proxy_host != null) {
 				jhtc.setProxy(proxy_host, proxy_port);
 			}
-
+			
 			jhtc.setInBound(new InBoundSocket());
 			jhtc.setOutBound(new OutBoundSocket());
-
 			jhtc.connect();
 
 			final InputStream jin = jhtc.getInputStream();

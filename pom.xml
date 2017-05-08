@@ -20,6 +20,15 @@
         </configuration>
       </plugin>
     </plugins>
+    <resources>
+      <resource>
+        <directory>src</directory>
+        <includes>
+          <include>security/jhttpserver.jks</include>
+          <include>security/jhttpserver-truststore.jks</include>
+        </includes>
+      </resource>
+    </resources>
   </build>  
   <dependencies>
     <dependency>

@@ -5,12 +5,14 @@ usage="
 Java HttpTunnel client program.
 
 usage:
-    $(basename "$0") [-h|--help] [-L|--local-port LOCALPORT] [-P|--proxy-host PROXYHOST] (http|https)://[SERVER]:[PORT]
+    $(basename "$0") [-h|--help] [-L|--local-port LOCALPORT] [-P|--proxy-host PROXYHOST] [-T|--enable-tls] [-P|--keystore-pass PASSWORD] (http|https)://[SERVER]:[PORT]
 
 where:
     -h|--help		show help for this script
     -L|--local-port	set the local port to listen. It must be a number between 1025-65536
     -P|--proxy-host	set the proxy settings http://[PROXY_HOST]:[PROXY_PORT]
+    -T|--enable-tls     enable TLS for jhttptunnel server component
+    -P|--keystore-pass  set the keystore password
 "
 
 getservervars() {
@@ -22,6 +24,8 @@ getservervars() {
       error
    fi
 }
+
+TLS=false
 
 getproxyvars() {
    re='^http://([A-Za-z0-9\.]+):([0-9]+)$'
@@ -66,6 +70,19 @@ while [[ $# -gt 0 ]]; do
          fi
          shift
          ;;
+      -T|--enable-tls)
+         TLS=true
+         shift
+         ;;
+      -P|--keystore-pass)
+         if [ "$2" != "" ]; then
+            PASSWORD=$2
+            shift
+         else
+            error
+         fi
+         shift
+         ;;
       *)
          DEFAULT=$key
          shift
@@ -76,6 +93,10 @@ done
 getservervars $DEFAULT
 if [ "$PROXY" != ""  ]; then
    getproxyvars $PROXY
+fi
+
+if [ "$PASSWORD" == "" ]; then
+   PASSWORD="1234567890"
 fi
 
 if [ "$JAVA_HOME" != "" ]; then
@@ -107,9 +128,18 @@ if [ "$PROXY_HOST" != "" ]; then
                        -cp $CLASSPATH \
                        com.arichnet.jhttptunnel.JHttpTunnelClient $JHTTP_SERVER_HOST:$JHTTP_SERVER_PORT
 else
-   $JAVA_HOME/bin/java -Dlport=$LOCAL_PORT \
-                       -Dlog4j.configuration=log4j-console.xml \
-                       -cp $CLASSPATH \
-                       com.arichnet.jhttptunnel.JHttpTunnelClient $JHTTP_SERVER_HOST:$JHTTP_SERVER_PORT
+   if $TLS; then
+      $JAVA_HOME/bin/java -Dlport=$LOCAL_PORT \
+                          -Dlog4j.configuration=log4j-console.xml \
+                          -Dssl=true \
+                          -Dkspass="$PASSWORD" \
+                          -cp $CLASSPATH \
+                          com.arichnet.jhttptunnel.JHttpTunnelClient $JHTTP_SERVER_HOST:$JHTTP_SERVER_PORT
+   else
+      $JAVA_HOME/bin/java -Dlport=$LOCAL_PORT \
+                          -Dlog4j.configuration=log4j-console.xml \
+                          -cp $CLASSPATH \
+                          com.arichnet.jhttptunnel.JHttpTunnelClient $JHTTP_SERVER_HOST:$JHTTP_SERVER_PORT
+   fi
 fi
 

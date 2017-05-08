@@ -30,76 +30,40 @@
 package com.arichnet.jhttptunnel;
 
 import java.net.*;
-import java.security.*;
-import java.security.cert.*;
 import org.apache.log4j.Logger;
 import java.io.*;
 import java.util.*;
 import javax.net.ssl.*;
 
-public class InBoundSocket extends InBound {
-	private static final Logger log = Logger.getLogger(InBoundSocket.class);
+public class InBoundSocketSSL extends InBound {
+	private static final Logger log = Logger.getLogger(InBoundSocketSSL.class);
 	static final private byte[] _rn = "\r\n".getBytes();
 
-	private Socket socket = null;
+	private SSLSocket socket = null;
 	private OutputStream out = null;
 	private InputStream in = null;
 
 	@Override
-	public void connect() throws IOException,
-								 KeyStoreException,
-								 CertificateException,
-								 NoSuchAlgorithmException,
-								 UnrecoverableKeyException,
-								 KeyManagementException {
+	public void connect() throws IOException {
 		close();
 		log.info("Calling connect from " + this.getClass().getName());		
 
 		String host = getHost();
 		int port = getPort();
 		int sid = getSid();
-		boolean ssl = getSSL();
-		String kspass = getKsPass();
 		String request = "/index.html?crap=" + sid + " HTTP/1.1";
 		// String request="/index.html?crap=1 HTTP/1.1";
 		Proxy p = getProxy();
+		SSLSocketFactory factory = (SSLSocketFactory)SSLSocketFactory.getDefault();
 		
 		if (p == null) {
-		   if (!ssl) {
-		      socket = new Socket(host, port);
-		      request = "GET " + request;
-		   }
-		   else {
- 			   // First we initialise the Keystore on the JAR file 	
-			   KeyStore keyStore=KeyStore.getInstance(KeyStore.getDefaultType());
-			   InputStream keyStream=ClassLoader.getSystemResourceAsStream("security/jhttpserver.jks");
-			   keyStore.load(keyStream, kspass.toCharArray());
-			    
-			   KeyStore trustKeyStore=KeyStore.getInstance(KeyStore.getDefaultType());
-			   keyStream=ClassLoader.getSystemResourceAsStream("security/jhttpserver-truststore.jks");
-			   trustKeyStore.load(keyStream, kspass.toCharArray());
-			   
-			   // KeyManagers decide which key material to use
-			   KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
-			   kmf.init(keyStore, kspass.toCharArray());
-			    
-			   // TrustManagers decide whether to allow connections
-			   TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
-			   tmf.init(trustKeyStore);
-			    
-			   SSLContext context = SSLContext.getInstance("TLS");
-			   context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
-			   
-			   log.debug("Starting client GET over TLS connection");
-			   SSLSocketFactory ssf = context.getSocketFactory();
-			   socket = ssf.createSocket(host, port);
-			   request = "GET " + request;
-		   }
+		   socket = (SSLSocket)factory.createSocket(host, port);
+		   request = "GET " + request;
 		} else {
-		  String phost = p.getHost();
-		  int pport = p.getPort();
-		  socket = new Socket(phost, pport);
-		  request = "GET http://" + host + ":" + port + request;
+		  //String phost = p.getHost();
+		  //int pport = p.getPort();
+		  //socket = new Socket(phost, pport);
+		  //request = "GET http://" + host + ":" + port + request;
 		}
 		
 		socket.setTcpNoDelay(true);
@@ -154,12 +118,7 @@ public class InBoundSocket extends InBound {
 	}
 
 	@Override
-	public int receiveData(byte[] foo, int s, int l) throws IOException,
-															KeyManagementException,
-															UnrecoverableKeyException,
-															NoSuchAlgorithmException,
-															CertificateException,
-															KeyStoreException {
+	public int receiveData(byte[] foo, int s, int l) throws IOException {
 		if (l <= 0) {
 			log.debug("receivdEdaa: " + l);
 		}
