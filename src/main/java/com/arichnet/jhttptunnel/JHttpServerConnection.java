@@ -426,7 +426,7 @@ class JHttpServerConnection {
 			
 				if (out_server.getTunnelOpened()) {
 					if (socket.read(buff, 0, 1) > 0) {
-						if (socket.available() > 0) {
+						//if (socket.available() > 0) {
 							// Get the first control byte						
 							// temp = socket.read(buff, 0, 1);						
 							postTraffic++;
@@ -490,7 +490,7 @@ class JHttpServerConnection {
 								in_server.setSendClose(true);					
 								break;
 							}
-						}
+						//}
 					}
 				} else {
 					if (socket.read(buff, 0, 1) > 0) {

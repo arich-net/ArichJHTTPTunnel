@@ -168,9 +168,9 @@ public class OutBoundSocket extends OutBound {
 		int retry = 2;
 		while (retry > 0) {
 			try {
-				log.debug("Data to write " + Arrays.toString(foo) + " OUT=" + out);
-				//out.write(foo, s, l);
-				out.write(foo);
+				log.debug("Data to write " + Arrays.toString(Arrays.copyOf(foo, l)) + " OUT=" + out);
+				out.write(foo, s, l);
+				//out.write(foo);
 				if (flush) {
 					out.flush();
 				}

@@ -248,6 +248,7 @@ public class JHttpTunnelClient {
 			command[2] = (byte) (len & 0xff);
 			// log.debug("send "+(len));
 			ob.sendData(command, 0, 3, true);
+			log.debug("foo length:" + foo.length + " len=" + len + " s=" + s);
 			ob.sendData(foo, s, len, true);
 			s += len;
 			l -= len;

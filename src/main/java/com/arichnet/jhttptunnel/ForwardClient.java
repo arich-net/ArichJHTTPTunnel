@@ -84,10 +84,11 @@ public class ForwardClient implements Runnable {
 			message();
 
 			while (forward_socket.isConnected() && !forward_socket.isClosed()) {
+				log.debug("Forward Client data available: " + forward_in.available());
 				if ((in_server != null) && 
 					(forward_in.available() > 0)) {					
 					//in_server.lockTable();
-					log.debug("Forward Client data available: " + forward_in.available());
+					//log.debug("Forward Client data available: " + forward_in.available());
 					if (forward_in.available() >= 10240) {
 						data_to_receive = new byte[10240];
 						forward_in.read(data_to_receive, 0, 10240);
@@ -112,7 +113,7 @@ public class ForwardClient implements Runnable {
 					close();
 				}
 				
-				Thread.currentThread().sleep((long) 10);
+				Thread.currentThread().sleep((long) 2000);
 			}
 
 		} catch (ConnectException e) {
