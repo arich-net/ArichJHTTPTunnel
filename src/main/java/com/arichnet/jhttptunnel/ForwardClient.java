@@ -83,8 +83,7 @@ public class ForwardClient implements Runnable {
 
 			message();
 
-			while (forward_socket.isConnected() && !forward_socket.isClosed()) {
-				log.debug("Forward Client data available: " + forward_in.available());
+			while (forward_socket.isConnected() && !forward_socket.isClosed()) {				
 				if ((in_server != null) && 
 					(forward_in.available() > 0)) {					
 					//in_server.lockTable();
@@ -113,7 +112,7 @@ public class ForwardClient implements Runnable {
 					close();
 				}
 				
-				Thread.currentThread().sleep((long) 2000);
+				Thread.currentThread().sleep((long) 20);
 			}
 
 		} catch (ConnectException e) {

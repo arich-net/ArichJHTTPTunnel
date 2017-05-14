@@ -65,10 +65,12 @@ public class MySocket {
 
 	public void close() {
 		try {
-			socket.shutdownOutput();
-			dataInputStream.close();
-			os.close();
-			socket.close();
+			while (!socket.isClosed()){
+				//socket.shutdownOutput();
+				dataInputStream.close();
+				os.close();
+				socket.close();
+			}
 		} catch (IOException e) {
 		}
 	}

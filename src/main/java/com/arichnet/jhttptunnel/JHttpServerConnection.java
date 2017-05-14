@@ -275,7 +275,7 @@ class JHttpServerConnection {
 				try {
 					log.debug("Tunnel Opened Value (out_server): " + out_server.getTunnelOpened());
 					log.debug("Tunnel Bound Locked: (in_server): " + in_server.getBoundLocked());
-					Thread.currentThread().sleep((long) 2000);
+					Thread.currentThread().sleep((long) 20);
 				} catch (Exception e) {
 				}
 			}
@@ -509,9 +509,8 @@ class JHttpServerConnection {
 							}
 						}
 					}
-				}
-				log.debug("Socket available: " + socket.available());			
-				Thread.currentThread().sleep((long) 2000); // Delay for the while loop
+				}			
+				Thread.currentThread().sleep((long) 20); // Delay for the while loop
 			
 			}
 
